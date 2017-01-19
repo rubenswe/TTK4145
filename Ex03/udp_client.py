@@ -10,5 +10,8 @@ def main():
         msg = raw_input("Message: ")
         conn.sendto(msg, (HOST, PORT))
 
+        data, addr = conn.recvfrom(1024)
+        print("From %s: %s" % (addr, data))
+
 if __name__ == "__main__":
     main()

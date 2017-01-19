@@ -11,5 +11,7 @@ def main():
         data, addr = conn.recvfrom(1024)
         print("From %s: %s" % (addr, data))
 
+        conn.sendto("The message '%s' has been received!" % (data), addr)
+
 if __name__ == "__main__":
     main()
