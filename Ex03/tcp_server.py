@@ -7,7 +7,7 @@ def main():
     s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
     s.bind((HOST, PORT))
 
-    print HOST, PORT
+    print(HOST, PORT)
     s.listen(1)
     conn, addr = s.accept()
     print("Connected by ", addr)
@@ -18,13 +18,13 @@ def main():
 
             if not data: break
 
-            print "Client says: "+data
+            print("Client says: "+data)
             conn. sendall("Server says: Hi!")
 
         except socket.error:
-            print "Error occured."
+            print("Error occurred.")
             break
     conn.close()
 
 if __name__ == "__main__":
-	main()
+    main()
