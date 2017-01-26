@@ -5,13 +5,16 @@ PORT = 20012
 
 def main():
     s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+    s.connect((HOST, PORT))
     
     while True:
-        s.connect((HOST, PORT))
+        print("Sending...")
         s.sendall("Hello, world!")
+        print("Receiving...")
         data = s.recv(1024)
-        s.close()
         print("Received", repr(data))
+
+    s.close()
 
 if __name__ == "__main__":
     main()

@@ -19,7 +19,7 @@ def main():
             if not data: break
 
             print("Client says: "+data)
-            conn. sendall("Server says: Hi!")
+            conn.sendall("Server says: Hi!")
 
         except socket.error:
             print("Error occurred.")
