@@ -3,6 +3,7 @@ import socket
 HOST = "127.0.0.1"
 PORT = 20012
 
+
 def main():
     s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
     s.bind((HOST, PORT))
@@ -18,8 +19,8 @@ def main():
 
             if not data: break
 
-            print("Client says: "+data)
-            conn.sendall("Server says: Hi!")
+            print("Client says: "+data.decode("utf-8"))
+            conn.sendall("Server says: Hi!".encode("utf-8"))
 
         except socket.error:
             print("Error occurred.")
