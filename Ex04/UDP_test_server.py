@@ -1,6 +1,8 @@
 from UDP_driver import UdpServer, UdpClient
 import json
 
-PORT = 20058
+IP = "localhost"
+PORT = 20012
 server = UdpServer(PORT)
 server.listen()
+# server.broadcast()

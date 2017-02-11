@@ -14,9 +14,10 @@ from time import sleep
 class UdpServer(object):
     def __init__(self, PORT):
         self.port = PORT
+        self.address = ""
         self.server = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
-        self.server.bind(("", self.port))  # Should this be in listen()?
-        print(self.server.getsockname())
+        self.server.bind((self.address, self.port))  # Should this be in listen()?
+        print("Socket info: {}".format(self.server.getsockname()))  # Tuple
         self.connection_made = False  # When should this be set to True?/When is an connection made? Is this necessary?
 
     def listen(self):
@@ -25,12 +26,18 @@ class UdpServer(object):
                 # Need to use threads here in case several connections are made at the same time?
                 # data, address = json.loads(self.server.recvfrom(1024))  # Decode data, recvfrom() or recv()?
                 data, address = self.server.recvfrom(1024)
-                print("Received: {}\nFrom: {}".format(data, address))
-                print(self.server.getsockname())
-                self.server.sendto(data, address)
-        # Correct place to close socket?
-        # self.server.close()
-        # print("Server stopped.")
+                self.address = address
+                print("Received: {}\nFrom: {}".format(data, self.address))
+                print("Socket info: {}".format(self.server.getsockname()))
+                self.server.sendto(data, self.address)
+
+    def broadcast(self):
+        print("Server is broadcasting...")
+        while True:
+            print("The server's address is: {}".format(self.server.getsockname()[0]))
+            print("The server's port is: {}".format(self.server.getsockname()[1]))
+            sleep(2)
+        pass
 
 
 class UdpClient(object):
@@ -61,7 +68,7 @@ class UdpClient(object):
         self.data = request.encode()
         self.client.sendto(self.data, self.address)  # TypeError: a bytes-like object is required, not 'str' <--- Get this when I try to use json
         print("The data {} is sent to {}".format(self.data, self.address))
-        print(self.client.getsockname())  # This prints address '0.0.0.0' and a random port... -> Does it have anything to say?
+        print("Socket info: {}".format(self.client.getsockname()))  # This prints address '0.0.0.0' and a random port... -> Does it have anything to say?
 
 # How to use classes:
 # server = UdpServer(20058)
