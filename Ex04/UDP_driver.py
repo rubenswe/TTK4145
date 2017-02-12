@@ -6,38 +6,45 @@ from time import sleep
 # Config:
 ####################################
 # address = "localhost"
-# PORT = 20058
+# PORT = 20012 # or 20058
 # someTimeoutFunction (?) --> If a client doesnt respond in som time, declare it dead(Should this be a class function?)
 ####################################
 
 
 class UdpServer(object):
-    def __init__(self, PORT):
+    def __init__(self, ADDRESS, PORT):
         self.port = PORT
+        self.serving_address = ADDRESS
         self.address = ""
         self.server = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
-        self.server.bind((self.address, self.port))  # Should this be in listen()?
-        print("Socket info: {}".format(self.server.getsockname()))  # Tuple
+        self.server.bind((self.address, self.port))  # Should this be here?
         self.connection_made = False  # When should this be set to True?/When is an connection made? Is this necessary?
 
+    # Listen for broadcasters
     def listen(self):
         print("Server is listening...")
         while True:
                 # Need to use threads here in case several connections are made at the same time?
-                # data, address = json.loads(self.server.recvfrom(1024))  # Decode data, recvfrom() or recv()?
+                # data, address = json.loads(self.server.recvfrom(1024))  # Decode data
                 data, address = self.server.recvfrom(1024)
                 self.address = address
                 print("Received: {}\nFrom: {}".format(data, self.address))
-                print("Socket info: {}".format(self.server.getsockname()))
-                self.server.sendto(data, self.address)
+                self.server.sendto(data, self.address)  # This doesnt do anything..?
+                # The broadcasting PC also need a listener to get an acknowledgement
+                sleep(2)
 
+    # Broadcast, "Here I am", and make a connection
     def broadcast(self):
         print("Server is broadcasting...")
+        self.server.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
+        self.server.setsockopt(socket.SOL_SOCKET, socket.SO_BROADCAST, 1)
         while True:
-            print("The server's address is: {}".format(self.server.getsockname()[0]))
-            print("The server's port is: {}".format(self.server.getsockname()[1]))
+            self.server.sendto(self.serving_address, (self.address, self.port)) # We also want to acknowledge that an connection is made...
             sleep(2)
-        pass
+            # Here connection_made could be used and set to True?
+
+# When a connection is made between the listener and a broadcaster, a new listener should be made so we can continue to
+# listen for other broadcasters.
 
 
 class UdpClient(object):
@@ -49,7 +56,7 @@ class UdpClient(object):
         # json.dumps(self.data)  # TESTING
         # self.client.sendto(data, self.address)  # Send the data/request ----> Should this be done in a function?
 
-    # heartbeat() is untested
+    # heartbeat() is untested/unused, is it needed?
     def heartbeat(self):
         while True:
             self.client.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
@@ -68,7 +75,6 @@ class UdpClient(object):
         self.data = request.encode()
         self.client.sendto(self.data, self.address)  # TypeError: a bytes-like object is required, not 'str' <--- Get this when I try to use json
         print("The data {} is sent to {}".format(self.data, self.address))
-        print("Socket info: {}".format(self.client.getsockname()))  # This prints address '0.0.0.0' and a random port... -> Does it have anything to say?
 
 # How to use classes:
 # server = UdpServer(20058)
