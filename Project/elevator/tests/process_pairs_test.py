@@ -8,6 +8,10 @@ import process_pairs
 import time
 import threading
 import logging
+import socket
+import json
+import argparse
+import sys
 
 
 class Counter(process_pairs.PrimaryBackupSwitchable):
@@ -54,76 +58,161 @@ class Counter(process_pairs.PrimaryBackupSwitchable):
 
 class Network(object):
 
-    def __init__(self):
+    def __init__(self, config):
+        self.__config = config
+
         self.__running = False
         self.__handler_list = dict()
-        self.__partner = None
 
-    def set_partner(self, partner):
-        self.__partner = partner
+        self.__server = None
 
-    def start_server(self):
+    def start_server(self, address):
+        if self.__running:
+            self.stop_server()
+
+        logging.debug("Start server %s:%d" % address)
+
         self.__running = True
 
+        self.__server = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+
+        while True:
+            try:
+                self.__server.bind(address)
+                break
+            except OSError:
+                pass
+
+        listening = threading.Thread(target=self.server_listening, daemon=True)
+        listening.start()
+
     def stop_server(self):
+        if not self.__running:
+            return
+
         self.__running = False
+
+        self.__server.close()
+        self.__server = None
 
     def add_packet_handler(self, packet_type, handler_func):
         self.__handler_list[packet_type] = handler_func
 
     def send_packet(self, destination_addr, packet_type, data):
-        return self.__partner.on_receive(packet_type, data)
 
-    def on_receive(self, packet_type, data):
-        if self.__running and packet_type in self.__handler_list:
-            return self.__handler_list[packet_type](None, data)
-        return False
+        # Prepares the data to sent
+        packet = {"type": packet_type, "data": data}
+        packet_json = json.dumps(packet)
+
+        # Sends the packet
+        client = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+        client.settimeout(self.__config.timeout)
+
+        try:
+            client.sendto(packet_json.encode(), destination_addr)
+        except socket.timeout:
+            return False
+
+        # Receives the respond
+        try:
+            resp_json, _ = client.recvfrom(1024)
+        except socket.timeout:
+            return False
+
+        resp_data = json.loads(resp_json.decode())
+
+        return resp_data
+
+    def server_listening(self):
+
+        while self.__running:
+            data, address = self.__server.recvfrom(1024)
+            packet = json.loads(data.decode())
+
+            packet_type = packet["type"]
+            packet_data = packet["data"]
+
+            if packet_type in self.__handler_list:
+                resp_data = self.__handler_list[packet_type](
+                    address, packet_data)
+
+                resp_json = json.dumps(resp_data)
+                self.__server.sendto(resp_json.encode(), address)
+
+
+class NetworkConfig(object):
+
+    def __init__(self):
+        self.ip_address = "localhost"
+        self.port = 12345
+        self.timeout = 0.5
 
 
 class ProcessPairsConfig(object):
 
     def __init__(self):
-        self.partner_ip_address = ""
-        self.partner_port = 0
+        self.partner_ip_address = "localhost"
+        self.partner_port = 12346
         self.max_attempts = 2
+
+        self.period = 0.5
+        self.timeout = 1.5
 
 
 class Config(object):
 
     def __init__(self):
+        self.network = NetworkConfig()
         self.process_pairs = ProcessPairsConfig()
+
+
+def server_on_receive(address, data):
+    print("[Received] %s:%d : %s" % (address[0], address[1], data))
+    return data
 
 
 def main():
     logging.basicConfig(level=logging.DEBUG)
 
-    # System 1
-    config_1 = Config()
-    counter_1 = Counter("COUNTER 1")
-    network_1 = Network()
+    # Arguments
+    parser = argparse.ArgumentParser()
+    parser.add_argument("--mode", type=str, default="primary")
+    args = parser.parse_args()
+    print("Arguments: ", args)
 
-    # System 2
-    config_2 = Config()
-    counter_2 = Counter("COUNTER 2")
-    network_2 = Network()
+    primary = True
+    if args.mode == "backup":
+        primary = False
 
-    # Connects 2 systems
-    network_1.set_partner(network_2)
-    network_2.set_partner(network_1)
+    # Initializes
+    config = Config()
+    network = Network(config.network)
+    counter = Counter("Counter")
 
-    # Activates primary/backup switching
-    switcher_1 = process_pairs.PrimaryBackupSwitcher()
-    switcher_2 = process_pairs.PrimaryBackupSwitcher()
+    module_list = {"counter": counter}
+    pp = process_pairs.ProcessPair()
+    pp.init(config, module_list, network, primary)
 
-    switcher_1.init(config_1, {"counter": counter_1}, network_1)
+    while True:
+        continue
 
-    time.sleep(5)
-    switcher_2.init(config_2, {"counter": counter_2}, network_2)
+    """switcher = PrimaryBackupSwitcher()
+    switcher.init(config, module_list, network)
 
-    # Kills system 1
-    time.sleep(20)
-    switcher_1.set_primary_mode(False)
-    time.sleep(20)
+    while True:
+        continue"""
+
+    """if False:
+        network.add_packet_handler("ping", server_on_receive)
+        network.start_server()
+
+        while True:
+            continue
+    else:
+        while True:
+            message = input("Message: ")
+            resp = network.send_packet(("localhost", 12345), "ping", message)
+            print("Response: %s" % resp)"""
 
 if __name__ == "__main__":
     main()

@@ -6,6 +6,9 @@ Created on Feb 9, 2017
 import logging
 import threading
 import time
+import inspect
+import subprocess
+import sys
 
 
 class PrimaryBackupSwitchable(object):
@@ -53,14 +56,9 @@ class PrimaryBackupSwitchable(object):
         raise NotImplementedError()
 
 
-class PrimaryBackupSwitcher(object):
-    """
-    Manages all the modules in the system, exchanges state between the primary
-    and backup and switches the roles of the system.
-    """
+class ProcessPair(object):
 
-    __PACKET_ARE_YOU_ALIVE = "are_you_alive"
-    __PACKET_I_AM_PRIMARY = "i_am_primary"
+    CURRENT_STATE_PACKET = "process_pair_current_state"
 
     def __init__(self):
         self.__is_primary = False
@@ -70,7 +68,12 @@ class PrimaryBackupSwitcher(object):
         self.__partner_address = None
         self.__max_attempts = 0
 
-    def init(self, config, module_list, network):
+        self.__period = 0.0
+        self.__timeout = 0.0
+
+        self.__last_backup = None
+
+    def init(self, config, module_list, network, is_primary):
 
         # Validates input data types
         assert isinstance(module_list, dict)
@@ -80,129 +83,106 @@ class PrimaryBackupSwitcher(object):
 
         self.__module_list = module_list
         self.__network = network
+        self.__network.add_packet_handler(self.CURRENT_STATE_PACKET,
+                                          self.__on_backup_received_state)
 
+        self.__primary_address = (config.network.ip_address,
+                                  config.network.port)
         self.__partner_address = (config.process_pairs.partner_ip_address,
                                   config.process_pairs.partner_port)
         self.__max_attempts = config.process_pairs.max_attempts
 
-        self.__set_primary_mode(False)
-        self.__network.add_packet_handler(
-            self.__PACKET_I_AM_PRIMARY, self.__on_receive_i_am_primary)
+        self.__period = config.process_pairs.period
+        self.__timeout = config.process_pairs.timeout
 
-    def __on_receive_are_you_alive(self, source_addr, data):
+        self.__set_primary_backup(is_primary)
 
-        if not self.__is_primary:
-            return False
+    def __create_backup_process(self):
 
-        data = {"states": dict()}
-        states = data["states"]
+        args = ["python3"]
+        args.extend(sys.argv)
+        if "--mode=backup" not in args:
+            args.append("--mode=backup")
+        print(args)
+        subprocess.Popen(args)
 
-        # Gets the current state of all the modules
-        for name, module in self.__module_list.items():
-            module_state = module.export_state()
-            states[name] = module_state
-
-        # Sends back the current state
-        return data
-
-    def __on_receive_i_am_primary(self, source_addr, data):
-
-        logging.info("[PROCESS PAIRS] Received 'I am primary' message")
-        self.__set_primary_mode(False)
-
-    def set_primary_mode(self, is_primary):
-        self.__set_primary_mode(is_primary)
-
-    def __set_primary_mode(self, is_primary):
+    def __set_primary_backup(self, is_primary):
+        self.__is_primary = is_primary
+        if is_primary:
+            logging.info("[PROCESS PAIRS] Start primary mode")
+        else:
+            logging.info("[PROCESS PAIRS] Start backup mode")
 
         if is_primary:
-            logging.info("[PROCESS PAIRS] Begin switching to primary mode")
-        else:
-            logging.info("[PROCESS PAIRS] Begin switching to backup mode")
 
-        self.__is_primary = is_primary
+            # Starts the network server in primary mode
+            self.__network.start_server(self.__primary_address)
 
-        if not is_primary:  # BACKUP MODE
+            # Creates backup process
+            self.__create_backup_process()
 
-            # Stops all modules
-            for module in self.__module_list.values():
-                module.stop()
-            self.__network.stop_server()
-
-            # Monitors the primary
-            thread = threading.Thread(target=self.__monitor_primary,
-                                      daemon=True)
+            # Creates new thread to periodically send state
+            thread = threading.Thread(
+                target=self.__send_state_thread, daemon=True)
             thread.start()
 
-        else:  # PRIMARY MODE
-
-            # Starts the network server and waits for requests from the backup
-            self.__network.add_packet_handler(
-                self.__PACKET_ARE_YOU_ALIVE, self.__on_receive_are_you_alive)
-            self.__network.start_server()
-            self.__network.send_packet(
-                self.__partner_address,
-                self.__PACKET_I_AM_PRIMARY, dict())
-
-            # Starts all modules
+            # Starts all the modules
             for module in self.__module_list.values():
                 module.start()
 
-        if is_primary:
-            logging.info("[PROCESS PAIRS] End switching to primary mode")
         else:
-            logging.info("[PROCESS PAIRS] End switching to backup mode")
 
-    def __monitor_primary(self):
+            self.__last_backup = time.time()
 
-        logging.warning("[PROCESS PAIRS] Begin monitoring the primary")
-        is_valid = True
+            # Starts the network server in backup mode
+            self.__network.start_server(self.__partner_address)
+
+            # Starts a thread to monitor how old the last backup is
+            thread = threading.Thread(target=self.__backup_monitor,
+                                      daemon=True)
+            thread.start()
+
+    def __send_state_thread(self):
+
         attempts = 0
 
-        while not self.__is_primary:
+        while self.__is_primary:
 
-            # Asks the primary for its current state
-            time.sleep(1)
+            # Sleep
+            time.sleep(self.__period)
+
+            # Gets the current state of the system
+            states = dict()
+            for (name, module) in self.__module_list.items():
+                states[name] = module.export_state()
+
+            # Sends the current state to the backup
             attempts += 1
-            response = self.__network.send_packet(
-                self.__partner_address,
-                self.__PACKET_ARE_YOU_ALIVE, dict())
-
-            # Validates the response
-            is_valid = True
-
-            if response is False:
-                logging.warning("[PROCESS PAIRS] Primary does not response!")
-                is_valid = False
-            elif not isinstance(response, dict):
-                logging.error(
-                    "[PROCESS PAIRS] Response is not a dictionary!")
-                is_valid = False
-            elif "states" not in response:
-                logging.error("[PROCESS PAIRS] Response does not contain "
-                              "current modules state!")
-                is_valid = False
-            else:
-                states = response["states"]
-
-                # Saves the current state of the primary to all the modules
-                for name, module in self.__module_list.items():
-                    if name in states:
-                        module.import_state(states[name])
-                    else:
-                        logging.error(
-                            "[PROCESS PAIRS] The state of module '%s'"
-                            " is not found!" % (name))
-                        is_valid = False
-
-            if is_valid:
+            resp = self.__network.send_packet(self.__partner_address,
+                                              self.CURRENT_STATE_PACKET,
+                                              {"states": states})
+            if resp is True:
                 attempts = 0
             elif attempts >= self.__max_attempts:
-                logging.info("[PROCESS PAIRS] Switch to primary mode")
-                self.__set_primary_mode(True)
-                break
+                # The backup has been dead
+                self.__create_backup_process()
 
-        logging.info("End monitoring the primary")
+    def __on_backup_received_state(self, address, data):
 
-    def destroy(self):
-        pass
+        self.__last_backup = time.time()
+        states = data["states"]
+
+        for (name, module) in self.__module_list.items():
+            module.import_state(states[name])
+
+        return True
+
+    def __backup_monitor(self):
+
+        while not self.__is_primary:
+            now = time.time()
+            period = now - self.__last_backup
+
+            if period > self.__timeout:
+                self.__set_primary_backup(True)
+                return
