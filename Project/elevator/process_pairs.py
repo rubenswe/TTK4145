@@ -53,84 +53,149 @@ class PrimaryBackupSwitchable(object):
 
 
 class ProcessPair(object):
+    """
+    Establishes process pairs fault tolerance mechanism for set of modules
+    in system.
+    These modules must implement the process_pairs.PrimaryBackupSwitchable
+    interface which provides the ability for process pair module to activate
+    the modules when the process is in primary mode and export/import the
+    current internal state of each module gradually.
 
-    CURRENT_STATE_PACKET = "process_pair_current_state"
+    Usage: pp = ProcessPair(config, arguments)
+        - config: system configuration reader
+        - arguments: command line argument list (produced by argparse)
 
-    def __init__(self):
+    Required configuration:
+        - process_pairs.address: IPC channel address for primary/backup
+          communication. It can be TCP/IP address, UNIX socket (*nix only)
+          or Pipe name (Windows only).
+        - process_pairs.period: state sending period in seconds (float)
+    """
+
+    def __init__(self, config, arguments):
         self.__is_primary = False
         self.__module_list = None
 
+        self.__config = config
+        self.__arguments = arguments
+
         self.__address = None
-        self.__authkey = None
+        self.__period = None
 
-        self.__max_attempts = 0
+        self.__is_channel_created = None
 
-        self.__period = 0.0
-        self.__timeout = 0.0
+    def start(self, module_list):
+        """
+        Starts process pairs fault tolerance mechanism. The internal state
+        of the specified set of modules will be exchanged between primary
+        and backup processes.
 
-        self.__last_backup = None
+        When the current process is in primary mode, all the modules will be
+        activated.
 
-    def init(self, config, is_primary, module_list):
+        @param module_list: list of name/value pairs, e.g:
+                            {
+                                "network": network_module,
+                                "motor": motor_module,
+                            }
+        """
+
+        logging.debug("Start activating process pairs mechanism")
 
         self.__module_list = module_list
 
-        self.__address = config.get_value("process_pairs", "address")
-        self.__authkey = config.get_value("process_pairs", "authkey")
+        # Reads the configuration
+        self.__address = self.__config.get_value("process_pairs", "address")
+        self.__period = self.__config.get_float("process_pairs", "period")
 
-        self.__max_attempts = config.get_int("process_pairs", "max_attempts")
+        # Reads the operation mode from the command line argument
+        is_primary = not self.__arguments.mode == "backup"
 
-        self.__period = config.get_float("process_pairs", "period")
-        self.__timeout = config.get_float("process_pairs", "timeout")
-
+        # Switches the system to that mode
         self.__set_primary_backup(is_primary)
 
-    def __create_backup_process(self):
+        logging.debug("Finish activating process pairs mechanism")
 
+    @staticmethod
+    def __create_backup_process():
+        """
+        Creates new independent process running in backup mode.
+        """
+
+        # All the program and arguments are the same, except the running mode
         args = [sys.executable]
         args.extend(sys.argv)
         if "--mode=backup" not in args:
             args.append("--mode=backup")
-        print(args)
+
+        # Starts new independent process
         subprocess.Popen(args)
 
     def __set_primary_backup(self, is_primary):
+        """
+        Sets the operation mode of the system.
+        Note: it is designed to be able to switch from backup mode to primary
+              mode, but not the other way around.
+        """
+
         self.__is_primary = is_primary
+
         if is_primary:
-            logging.info("Start primary mode")
+            logging.info("Start switching to primary mode")
         else:
-            logging.info("Start backup mode")
+            logging.info("Start switching to backup mode")
 
         if is_primary:
 
             # Starts all the modules
+            logging.debug("Activate all modules")
             for module in self.__module_list.values():
                 module.start()
 
             # Creates new thread to open a connection with the backup
-            # to periodically send state as well as monitor the backup
+            # to periodically send state as well as monitor the backup.
+            #
+            # Ensures that the communication channel has been created
+            # before creating a backup process.
+            logging.debug("Start a primary mode monitoring thread")
             thread = threading.Thread(
                 target=self.__primary_mode_thread, daemon=True)
+
+            self.__is_channel_created = False
             thread.start()
+            while not self.__is_channel_created:
+                continue
 
             # Creates backup process
+            logging.debug("Create a backup process")
             self.__create_backup_process()
 
         else:
 
-            self.__last_backup = time.time()
-
             # Starts a thread to monitor how old the last backup is
+            logging.debug("Start a backup mode monitoring thread")
             thread = threading.Thread(target=self.__backup_mode_thread,
                                       daemon=True)
             thread.start()
 
+        if is_primary:
+            logging.debug("Finish switching to primary mode")
+        else:
+            logging.debug("Finish switching to backup mode")
+
     def __primary_mode_thread(self):
+        """
+        Primary mode monitoring thread which periodically sends the current
+        state to the backup process. It also creates a new backup process
+        if the connection has lost.
+        """
 
         while True:
-            try:
-                logging.debug("Open a connection with the backup")
-                with Listener(self.__address) as listener:
+            logging.debug("Open a connection with the backup")
+            with Listener(self.__address) as listener:
+                self.__is_channel_created = True
 
+                try:
                     logging.debug("Wait for the backup")
                     with listener.accept() as conn:
                         logging.info("The backup is connected")
@@ -154,24 +219,19 @@ class ProcessPair(object):
                             # Sleep
                             time.sleep(self.__period)
 
-            except (ConnectionResetError, BrokenPipeError, EOFError):
-                logging.error("Connection with the backup is down. The backup "
-                              "has been able to crash!")
+                except (ConnectionResetError, BrokenPipeError, EOFError):
+                    logging.error("Connection with the backup is down. "
+                                  "The backup has been able to crash!")
 
-            # Tries to create the backup again
-            self.__create_backup_process()
-
-    def __on_backup_received_state(self, address, data):
-
-        self.__last_backup = time.time()
-        states = data["states"]
-
-        for (name, module) in self.__module_list.items():
-            module.import_state(states[name])
-
-        return True
+                # Tries to create the backup again
+                self.__create_backup_process()
 
     def __backup_mode_thread(self):
+        """
+        Backup mode monitoring thread which receives the current state
+        of the primary process. When the connection has lost, the system
+        will be switched to primary mode.
+        """
 
         try:
             logging.debug("Connect to the primary")
