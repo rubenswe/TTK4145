@@ -58,12 +58,10 @@ class Counter(process_pairs.PrimaryBackupSwitchable):
 def main():
     # Arguments
     parser = argparse.ArgumentParser()
-    parser.add_argument("--mode", type=str, default="primary")
+    parser.add_argument(
+        "--mode", type=str, default="primary",
+        help="Process pairs mode (primary/backup). Default: primary")
     args = parser.parse_args()
-
-    primary = True
-    if args.mode == "backup":
-        primary = False
 
     # Initializes
     config = core.Configuration("../config/local-test.conf", "floor_0")
@@ -75,8 +73,8 @@ def main():
         "counter": counter
     }
 
-    pp = process_pairs.ProcessPair()
-    pp.init(config, primary, module_list)
+    pp = process_pairs.ProcessPair(config, args)
+    pp.start(module_list)
 
     while True:
         time.sleep(1000)
