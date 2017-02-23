@@ -8,6 +8,9 @@ Proprietary and confidential
 
 import process_pairs
 import logging
+import json
+import threading
+# import elevator_driver #  not yet commited
 
 
 class UserInterface(process_pairs.PrimaryBackupSwitchable):
@@ -22,15 +25,30 @@ class UserInterface(process_pairs.PrimaryBackupSwitchable):
     def __init__(self, config):
         # What state should the elevators start in? -> Decided by the config
         # ...
+        """
+         The elevator should be initialized with(Should all this be in the config?):
+            - self.state
+            - self. counter #  for testing?
+            -self.running #  not needed?
+        """
+        self.__lock_state = threading.Lock()
+
         pass
 
     def start(self):
         """
         Starts working from the current state
         """
-
         logging.debug("Start activating user interface module")
+
+        # print("Start elevator in current state: {}".format())
+
         logging.debug("Finish activating user interface module")
+
+    def get_target_floor(self):
+        pass
+
+    def
 
     def export_state(self):
         """
