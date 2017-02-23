@@ -73,6 +73,8 @@ class ProcessPair(object):
     """
 
     def __init__(self, config, arguments):
+        self.__enabled = True
+
         self.__is_primary = False
         self.__module_list = None
 
@@ -101,6 +103,8 @@ class ProcessPair(object):
         """
 
         logging.debug("Start activating process pairs mechanism")
+
+        self.__enabled = self.__config.get_int("process_pairs", "enabled") == 1
 
         self.__module_list = module_list
 
@@ -145,38 +149,46 @@ class ProcessPair(object):
         else:
             logging.info("Start switching to backup mode")
 
-        if is_primary:
+        if self.__enabled:
+            if is_primary:
 
-            # Starts all the modules
-            logging.debug("Activate all modules")
-            for module in self.__module_list.values():
-                module.start()
+                # Starts all the modules
+                logging.debug("Activate all modules")
+                for module in self.__module_list.values():
+                    module.start()
 
-            # Creates new thread to open a connection with the backup
-            # to periodically send state as well as monitor the backup.
-            #
-            # Ensures that the communication channel has been created
-            # before creating a backup process.
-            logging.debug("Start a primary mode monitoring thread")
-            thread = threading.Thread(
-                target=self.__primary_mode_thread, daemon=True)
+                # Creates new thread to open a connection with the backup
+                # to periodically send state as well as monitor the backup.
+                #
+                # Ensures that the communication channel has been created
+                # before creating a backup process.
+                logging.debug("Start a primary mode monitoring thread")
+                thread = threading.Thread(
+                    target=self.__primary_mode_thread, daemon=True)
 
-            self.__is_channel_created = False
-            thread.start()
-            while not self.__is_channel_created:
-                continue
+                self.__is_channel_created = False
+                thread.start()
+                while not self.__is_channel_created:
+                    continue
 
-            # Creates backup process
-            logging.debug("Create a backup process")
-            self.__create_backup_process()
+                # Creates backup process
+                logging.debug("Create a backup process")
+                self.__create_backup_process()
 
-        else:
+            else:
 
-            # Starts a thread to monitor how old the last backup is
-            logging.debug("Start a backup mode monitoring thread")
-            thread = threading.Thread(target=self.__backup_mode_thread,
-                                      daemon=True)
-            thread.start()
+                # Starts a thread to monitor how old the last backup is
+                logging.debug("Start a backup mode monitoring thread")
+                thread = threading.Thread(target=self.__backup_mode_thread,
+                                          daemon=True)
+                thread.start()
+        else:  # Process pairs mechanism is disabled
+            logging.debug("Process pairs mechanism is disabled")
+
+            if is_primary:
+                logging.debug("Activate all modules")
+                for module in self.__module_list.values():
+                    module.start()
 
         if is_primary:
             logging.debug("Finish switching to primary mode")
