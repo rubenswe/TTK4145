@@ -8,9 +8,8 @@ Proprietary and confidential
 
 import process_pairs
 import logging
-import json
 import threading
-# import elevator_driver #  not yet commited
+#  import elevator_driver #  not yet commited
 
 
 class UserInterface(process_pairs.PrimaryBackupSwitchable):
@@ -24,14 +23,17 @@ class UserInterface(process_pairs.PrimaryBackupSwitchable):
 
     def __init__(self, config):
         # What state should the elevators start in? -> Decided by the config
-        # ...
+        #
         """
          The elevator should be initialized with(Should all this be in the config?):
-            - self.state
+            - self.state # position and direction(UP=1, STOP=0, DOWN=-1)
             - self. counter #  for testing?
-            -self.running #  not needed?
+            - self.running #  not needed?
+            - self.door_state
         """
         self.__lock_state = threading.Lock()
+        self.__running = True
+        self.state = dict()  # dictionary with default position and direction? Given by config?
 
         pass
 
@@ -42,13 +44,23 @@ class UserInterface(process_pairs.PrimaryBackupSwitchable):
         logging.debug("Start activating user interface module")
 
         # print("Start elevator in current state: {}".format())
+        # thread = threading.Thread()
 
         logging.debug("Finish activating user interface module")
 
+    # Should have a function that listens for key presses in the elevator, should this be in the driver?
+
+    # When a button in the elevator is pushed, call this function:
     def get_target_floor(self):
         pass
 
-    def
+    # When an elevator reaches its destination, or gets a request, set the door light:
+    def set_door_state(self):
+        pass
+
+    # When ...
+    def set_elevator_state(self):
+        pass
 
     def export_state(self):
         """
@@ -57,7 +69,12 @@ class UserInterface(process_pairs.PrimaryBackupSwitchable):
 
         logging.debug("Start exporting current state of user interface")
 
-        state = dict()
+        self.__lock_state.acquire()
+        state = {
+            "type": self.state,  # elevator_state?
+            "data": None
+        }
+        self.__lock_state.release()
 
         logging.debug("Finish exporting current state of user interface")
         return state
