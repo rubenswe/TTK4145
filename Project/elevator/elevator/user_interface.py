@@ -9,7 +9,7 @@ Proprietary and confidential
 import process_pairs
 import logging
 import threading
-#  import elevator_driver #  not yet commited
+import elevator_driver
 
 
 class UserInterface(process_pairs.PrimaryBackupSwitchable):
@@ -51,15 +51,21 @@ class UserInterface(process_pairs.PrimaryBackupSwitchable):
     # Should have a function that listens for key presses in the elevator, should this be in the driver?
 
     # When a button in the elevator is pushed, call this function:
-    def get_target_floor(self):
+    def set_target_floor(self):
+        # void elev_set_button_lamp(elev_button_type_t button, int floor, int value)
         pass
 
     # When an elevator reaches its destination, or gets a request, set the door light:
     def set_door_state(self):
+        # void elev_set_door_open_lamp(int value) #  value is 0 or 1 (off/on)
         pass
 
     # When ...
     def set_elevator_state(self):
+        pass
+
+    # When the stop button is pressed, call this function:
+    def stop(self):
         pass
 
     def export_state(self):
