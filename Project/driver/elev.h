@@ -25,7 +25,7 @@ typedef enum {
     ET_Simulation
 } elev_type;
 
-void elev_init(elev_type e);
+void elev_init(elev_type e, const char* ip, const char* port);
 
 void elev_set_motor_direction(elev_motor_direction_t dirn);
 void elev_set_button_lamp(elev_button_type_t button, int floor, int value);

@@ -35,8 +35,9 @@ static elev_type elevatorType = ET_Comedi;
 static int sockfd;
 static pthread_mutex_t sockmtx;
 
-void elev_init(elev_type e) {
+void elev_init(elev_type e, const char* ip, const char* port) {
     elevatorType = e;
+    printf("type: %d, ip: '%s', port: '%s'\n", e, ip, port);
     switch(elevatorType) {
     case ET_Comedi:
         ;
@@ -56,13 +57,6 @@ void elev_init(elev_type e) {
 
     case ET_Simulation:
         ;
-        char ip[16] = {0};
-        char port[8] = {0};
-        con_load("simulator.con",
-            con_val("com_ip",   ip,   "%s")
-            con_val("com_port", port, "%s")
-        )
-        
         pthread_mutex_init(&sockmtx, NULL);
     
         sockfd = socket(AF_INET, SOCK_STREAM, 0);
