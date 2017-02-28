@@ -28,7 +28,7 @@ def main():
     args = parser.parse_args()
 
     # Initializes
-    config = core.Configuration("./config/local-test.conf", "floor_0")
+    config = core.Configuration("../config/local-test.conf", "floor_0")
     net = network.Network(config)
     drv = driver.Driver(config)
 
