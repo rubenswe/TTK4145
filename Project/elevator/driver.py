@@ -11,6 +11,8 @@ import ctypes
 import enum
 import logging
 import process_pairs
+import socket
+import threading
 
 
 class DriverTarget(enum.IntEnum):
@@ -34,44 +36,29 @@ class Driver(process_pairs.PrimaryBackupSwitchable):
         if config.get_value("driver", "type") == "Comedi":
             self.__type = DriverTarget.Comedi
 
-        # If it is simulation, address of the simulator is needed
         if self.__type == DriverTarget.Simulation:
             self.__address = (
                 config.get_value("driver", "ip_address"),
-                config.get_value("driver", "port"))
+                config.get_int("driver", "port"))
+
+            self.__lib = SimulationDriver()
         else:
-            self.__address = ("", "")
+            self.__address = None
+            self.__lib = ctypes.cdll.LoadLibrary(
+                "../driver/libdriver.so")
 
-        # C driver library
-        self.__lib = ctypes.cdll.LoadLibrary(
-            "../driver/libdriver.so")
-
-        """self.__lib.elev_init.argtypes = [ctypes.c_int,
-                                         ctypes.POINTER(ctypes.c_char),
-                                         ctypes.POINTER(ctypes.c_char)]
-        self.__lib.elev_set_motor_direction.argtypes = [ctypes.c_int]
-        self.__lib.elev_set_button_lamp.argtypes = [
-            ctypes.c_int, ctypes.c_int, ctypes.c_int]
-        self.__lib.elev_set_floor_indicator.argtypes = [ctypes.c_int]
-        self.__lib.elev_set_door_open_lamp.argtypes = [ctypes.c_int]
-        self.__lib.elev_set_stop_lamp.argtypes = [ctypes.c_int]
-        self.__lib.elev_get_button_signal.argtypes = [
-            ctypes.c_int, ctypes.c_int]
-        self.__lib.elev_get_button_signal.restype = ctypes.c_int
-        self.__lib.elev_get_floor_sensor_signal.restype = ctypes.c_int
-        self.__lib.elev_get_stop_signal.restype = ctypes.c_int
-        self.__lib.elev_get_obstruction_signal.restype = ctypes.c_int"""
-
-            
     def start(self):
         """
         Starts working from the current state.
         """
 
         logging.debug("Start activating driver module")
-        
-        self.__lib.elev_init(self.__type, self.__address[0], self.__address[1])
-        
+
+        if self.__type == DriverTarget.Simulation:
+            self.__lib.elev_init(self.__address[0], self.__address[1])
+        else:
+            self.__lib.elev_init()
+
         logging.debug("Finish activating driver module")
 
     def export_state(self):
@@ -117,3 +104,86 @@ class Driver(process_pairs.PrimaryBackupSwitchable):
 
     def get_obstruction_signal(self):
         return self.__lib.elev_get_obstruction_signal()
+
+
+class SimulationDriver(object):
+    """
+    Network-based elevator simulator driver which is rewritten from the native
+    driver provided to support platform-independence.
+    """
+
+    def __init__(self):
+
+        self.__socket = None
+        self.__socket_lock = threading.Lock()
+
+    def elev_init(self, ip_addr, port):
+        """
+        Starts working from the current state.
+        """
+
+        self.__socket_lock.acquire()
+
+        self.__socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+        self.__socket.connect((ip_addr, port))
+
+        self.__socket_lock.release()
+
+    def __sync_send(self, msg, receive=False):
+        self.__socket_lock.acquire()
+
+        self.__socket.send(msg)
+        if receive:
+            recv = self.__socket.recv(1024)
+        else:
+            recv = None
+
+        self.__socket_lock.release()
+
+        return recv
+
+    def __sync_send_and_receive(self, msg):
+        return self.__sync_send(msg, True)
+
+    def elev_set_motor_direction(self, direction):
+        msg = bytearray([1, (direction + 256) % 256, 0, 0])
+        self.__sync_send(msg)
+
+    def elev_set_button_lamp(self, button, floor, value):
+        msg = bytes([2, button, floor, value])
+        self.__sync_send(msg)
+
+    def elev_set_floor_indicator(self, floor):
+        msg = bytes([3, floor, 0, 0])
+        self.__sync_send(msg)
+
+    def elev_set_door_open_lamp(self, value):
+        msg = bytes([4, value, 0, 0])
+        self.__sync_send(msg)
+
+    def elev_set_stop_lamp(self, value):
+        msg = bytes([5, value, 0, 0])
+        self.__sync_send(msg)
+
+    def elev_get_button_signal(self, button, floor):
+        msg = bytes([6, button, floor, 0])
+        resp = self.__sync_send_and_receive(msg)
+        return resp[1]
+
+    def elev_get_floor_sensor_signal(self):
+        msg = bytes([7, 0, 0, 0])
+        resp = self.__sync_send_and_receive(msg)
+
+        if resp[1] != 0:
+            return resp[2]
+        return -1
+
+    def elev_get_stop_signal(self):
+        msg = bytes([8, 0, 0, 0])
+        resp = self.__sync_send_and_receive(msg)
+        return resp[1]
+
+    def elev_get_obstruction_signal(self):
+        msg = bytes([9, 0, 0, 0])
+        resp = self.__sync_send_and_receive(msg)
+        return resp[1]
