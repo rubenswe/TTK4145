@@ -13,7 +13,9 @@ import time
 import core
 import network
 import process_pairs
-from floor_panel import user_interface
+import transaction
+import driver
+import floor_panel.user_interface
 
 logging.basicConfig(format="%(levelname)8s | %(asctime)s : %(message)s"
                     " (%(module)s.%(funcName)s)",
@@ -41,11 +43,16 @@ def main():
 
     config = core.Configuration("../config/local-test.conf", node_name)
     net = network.Network(config)
-    _user_interface = user_interface.UserInterface(config)
+    transaction_manager = transaction.TransactionManager()
+    _driver = driver.Driver(config)
+
+    user_interface = floor_panel.user_interface.UserInterface()
+    user_interface.init(config, transaction_manager, _driver)
 
     module_list = {
         "network": net,
-        "user_interface": _user_interface,
+        "driver": _driver,
+        "user_interface": user_interface,
     }
 
     # Starts

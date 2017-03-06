@@ -21,6 +21,20 @@ class DriverTarget(enum.IntEnum):
     Simulation = 1
 
 
+class MotorDirection(enum.IntEnum):
+
+    Down = -1
+    Stop = 0
+    Up = 1
+
+
+class FloorButton(enum.IntEnum):
+
+    CallUp = 0
+    CallDown = 1
+    Command = 2
+
+
 class Driver(process_pairs.PrimaryBackupSwitchable):
     """
     Provides functionalities to interact with hardware components, including:
