@@ -6,34 +6,36 @@ Unauthorized copying of this file, via any medium is strictly prohibited
 Proprietary and confidential
 """
 
-import process_pairs
 import logging
 import threading
-import elevator_driver
+import process_pairs
+import driver
+import time
+import core
+import transaction
+import elevator
 
 
 class UserInterface(process_pairs.PrimaryBackupSwitchable):
     """
     Provides user interacting interface, including:
-        - Start/Stop
-        - Destination floor(from 0 to 3)
+        - Start/Stop(not needed)
+        - Target(Destination) floor(from 0 to 3)
         - Door open/closed light
-        - (Obstruction?)
+        - Obstruction(not needed)
     """
 
     def __init__(self, config):
-        # What state should the elevators start in? -> Decided by the config
-        #
         """
-         The elevator should be initialized with(Should all this be in the config?):
+         The elevator should be initialized with:
             - self.state # position and direction(UP=1, STOP=0, DOWN=-1)
             - self. counter #  for testing?
             - self.running #  not needed?
             - self.door_state
         """
         self.__lock_state = threading.Lock()
-        self.__running = True
-        self.state = dict()  # dictionary with default position and direction? Given by config?
+        self.__driver = driver.Driver(config)
+        self.__target_floor = 0
 
         pass
 
@@ -44,28 +46,14 @@ class UserInterface(process_pairs.PrimaryBackupSwitchable):
         logging.debug("Start activating user interface module")
 
         # print("Start elevator in current state: {}".format())
-        # thread = threading.Thread()
+        # Starts button monitoring thread
+        logging.debug("Start button monitoring thread")
+        threading.Thread(target=self.__button_monitor_thread, daemon=True).start()
 
         logging.debug("Finish activating user interface module")
 
-    # Should have a function that listens for key presses in the elevator, should this be in the driver?
-
-    # When a button in the elevator is pushed, call this function:
-    def set_target_floor(self):
-        # void elev_set_button_lamp(elev_button_type_t button, int floor, int value)
-        pass
-
-    # When an elevator reaches its destination, or gets a request, set the door light:
-    def set_door_state(self):
-        # void elev_set_door_open_lamp(int value) #  value is 0 or 1 (off/on)
-        pass
-
-    # When ...
+    # Not needed?:
     def set_elevator_state(self):
-        pass
-
-    # When the stop button is pressed, call this function:
-    def stop(self):
         pass
 
     def export_state(self):
@@ -92,3 +80,23 @@ class UserInterface(process_pairs.PrimaryBackupSwitchable):
 
         logging.debug("Start importing current state of user interface")
         logging.debug("Finish importing current state of user interface")
+
+    def __button_monitor_thread(self):
+        """
+        Periodically checks whether a button is pushed.
+        """
+
+        logging.debug("Start monitoring elevator panel buttons")
+
+        is_pushed = [0, 0, 0, 0]
+
+        while True:
+
+            # Checks each elevator panel button(0,1,2,3)
+            # TODO: When any of the buttons is pushed, send a request to the RequestManager
+            for floor in range(len(is_pushed)):
+                value = self.__driver.get_button_signal(2, floor)
+                if is_pushed[floor] == 0 and value == 1:
+                    # This button is pushed
+                    logging.debug("ELEVATOR PANEL: Button to floor {} is pushed".format(floor+1))
+                is_pushed[floor] = value

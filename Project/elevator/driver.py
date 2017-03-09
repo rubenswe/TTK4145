@@ -45,7 +45,7 @@ class Driver(process_pairs.PrimaryBackupSwitchable):
         else:
             self.__address = None
             self.__lib = ctypes.cdll.LoadLibrary(
-                "../driver/libdriver.so")
+                "../../driver/libdriver.so")
 
     def start(self):
         """
