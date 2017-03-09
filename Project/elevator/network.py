@@ -132,7 +132,7 @@ class Network(process_pairs.PrimaryBackupSwitchable):
 
         try:
             client.sendto(packet_json.encode(), addr)
-        except socket.timeout:
+        except OSError:
             logging.error(
                 "Cannot send the packet! (addr = %s:%d, packet_type = \"%s\")",
                 addr[0], addr[1], packet_type)
@@ -142,7 +142,7 @@ class Network(process_pairs.PrimaryBackupSwitchable):
         logging.debug("Wait for reply from server")
         try:
             resp_json, _ = client.recvfrom(self.__buffer_size)
-        except socket.timeout:
+        except OSError:
             logging.error(
                 "Cannot receive reply! (addr = %s:%d, packet_type = \"%s\")",
                 addr[0], addr[1], packet_type)
@@ -199,7 +199,12 @@ class Network(process_pairs.PrimaryBackupSwitchable):
 
                 logging.debug("Answer the client")
                 resp_json = json.dumps(resp_data)
-                self.__server.sendto(resp_json.encode(), address)
+
+                try:
+                    self.__server.sendto(resp_json.encode(), address)
+                except OSError:
+                    logging.error("Cannot reply! (addr = %s:%d)",
+                                  address[0], address[1])
             else:
                 logging.warning(
                     "Unknown packet! (addr = %s:%d, packet_type = \"%s\")",

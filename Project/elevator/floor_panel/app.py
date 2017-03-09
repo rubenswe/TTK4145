@@ -16,6 +16,7 @@ import process_pairs
 import transaction
 import driver
 import floor_panel.user_interface
+import floor_panel.request_manager
 
 logging.basicConfig(format="%(levelname)8s | %(asctime)s : %(message)s"
                     " (%(module)s.%(funcName)s)",
@@ -47,12 +48,17 @@ def main():
     _driver = driver.Driver(config)
 
     user_interface = floor_panel.user_interface.UserInterface()
-    user_interface.init(config, transaction_manager, _driver)
+    request_manager = floor_panel.request_manager.RequestManager(
+        config, transaction_manager, net)
+
+    user_interface.init(config, transaction_manager, _driver, request_manager)
+    request_manager.init(user_interface)
 
     module_list = {
         "network": net,
         "driver": _driver,
         "user_interface": user_interface,
+        "request_manager": request_manager,
     }
 
     # Starts

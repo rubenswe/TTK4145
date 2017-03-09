@@ -62,12 +62,14 @@ class Configuration(object):
             parser_section = parser[section_name]
 
             # Checks if this is a generic or node-specific settings
-            # Node-specific section: <section_name>.<node_name>
+            # Node-specific section: <section_part>.<node_part>
             parts = section_name.split(".")
+            section_part = section_name
+            node_part = str()
+
             if len(parts) == 2:  # This is node-specific settings
-                section_name = parts[0]
-                if parts[1] != node_name:
-                    continue
+                section_part = parts[0]
+                node_part = parts[1]
             elif len(parts) > 2:  # Invalid section name
                 logging.fatal(
                     "Configuration format is wrong! (section_name = \"%s\")",
@@ -75,13 +77,19 @@ class Configuration(object):
                 raise RuntimeError()
 
             # Creates new section in the dictionary if not available
-            if section_name not in self.__config:
-                self.__config[section_name] = dict()
-            section = self.__config[section_name]
+            if section_part not in self.__config:
+                self.__config[section_part] = dict()
+            section = self.__config[section_part]
 
             # Copies the settings from file to the dictionary
-            for config_name in parser_section:
-                section[config_name] = parser_section[config_name]
+            if node_part == "" or node_part == node_name:
+                for config_name in parser_section:
+                    section[config_name] = parser_section[config_name]
+
+            if node_part != "":
+                for config_name in parser_section:
+                    section[node_part + "." + config_name] = \
+                        parser_section[config_name]
 
         logging.info("Finish reading configuration file")
 

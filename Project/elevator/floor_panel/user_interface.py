@@ -131,7 +131,6 @@ class UserInterface(process_pairs.PrimaryBackupSwitchable):
         is_pushed = {
             driver.FloorButton.CallUp: 0,
             driver.FloorButton.CallDown: 0,
-            driver.FloorButton.Command: 0,
         }
 
         while True:
@@ -142,15 +141,13 @@ class UserInterface(process_pairs.PrimaryBackupSwitchable):
                 value = self.__driver.get_button_signal(button, self.__floor)
                 if is_pushed[button] == 0 and value == 1:
                     # This button is pushed
+
                     logging.debug("Floor %d, button %d is pushed",
                                   self.__floor, button)
 
-                    if button == driver.FloorButton.CallUp:
-                        direction = core.RequestDirection.Up
-                    elif button == driver.FloorButton.CallDown:
+                    direction = core.RequestDirection.Up
+                    if button == driver.FloorButton.CallDown:
                         direction = core.RequestDirection.Down
-                    else:
-                        continue
 
                     # Sends request to request manager
                     logging.debug("Send request to the request manager")

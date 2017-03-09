@@ -172,8 +172,8 @@ class RequestManager(process_pairs.PrimaryBackupSwitchable,
             # Finds the appropriate elevator
             elev_no = 0
             elev_address = (
-                self.__config.get_value("network", "floor_0_address"),
-                self.__config.get_int("network", "floor_0_port"))
+                self.__config.get_value("network", "elevator_0.address"),
+                self.__config.get_int("network", "elevator_0.port"))
 
             # Sends request to the appropriate elevator
             data = {
@@ -181,7 +181,10 @@ class RequestManager(process_pairs.PrimaryBackupSwitchable,
                 "direction": direction,
             }
 
-            logging.debug("Send the request to elevator %d", elev_no)
+            logging.debug(
+                "Send the request to elevator %d (addr = %s, data = %s)",
+                elev_no, elev_address, data)
+
             resp = self.__network.send_packet(
                 elev_address, "elev_request_add", data)
 
