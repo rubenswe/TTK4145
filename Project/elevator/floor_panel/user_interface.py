@@ -14,6 +14,7 @@ import driver
 import time
 import core
 import transaction
+import floor_panel
 
 
 class UserInterfaceState(object):
@@ -62,7 +63,9 @@ class UserInterface(process_pairs.PrimaryBackupSwitchable):
         self.__transaction_manager = None
         self.__driver = None
 
-    def init(self, config, _transaction_manager, _driver):
+        self.__request_manager = None
+
+    def init(self, config, _transaction_manager, _driver, request_manager):
         """
         Initializes the user interface for floor panel
         """
@@ -70,12 +73,16 @@ class UserInterface(process_pairs.PrimaryBackupSwitchable):
         assert isinstance(config, core.Configuration)
         assert isinstance(_transaction_manager, transaction.TransactionManager)
         assert isinstance(_driver, driver.Driver)
+        assert isinstance(request_manager,
+                          floor_panel.request_manager.RequestManager)
 
         self.__floor = config.get_int("floor", "floor")
         self.__period = config.get_float("floor", "period", 0.1)
 
         self.__transaction_manager = _transaction_manager
         self.__driver = _driver
+
+        self.__request_manager = request_manager
 
     def start(self):
         """
@@ -137,6 +144,20 @@ class UserInterface(process_pairs.PrimaryBackupSwitchable):
                     # This button is pushed
                     logging.debug("Floor %d, button %d is pushed",
                                   self.__floor, button)
+
+                    if button == driver.FloorButton.CallUp:
+                        direction = core.RequestDirection.Up
+                    elif button == driver.FloorButton.CallDown:
+                        direction = core.RequestDirection.Down
+                    else:
+                        continue
+
+                    # Sends request to request manager
+                    logging.debug("Send request to the request manager")
+
+                    tid = self.__transaction_manager.start()
+                    self.__request_manager.add_request(tid, direction)
+                    self.__transaction_manager.finish(tid)
 
                 is_pushed[button] = value
 
