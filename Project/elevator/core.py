@@ -12,13 +12,14 @@ import configparser
 import enum
 
 
-class RequestDirection(enum.IntEnum):
+class Direction(enum.IntEnum):
     """
     Direction of request from floors
     """
 
-    Up = 0,
-    Down = 1
+    Down = -1,
+    Stop = 0,
+    Up = 1
 
 
 class Configuration(object):

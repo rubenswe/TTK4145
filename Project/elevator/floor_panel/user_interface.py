@@ -77,7 +77,7 @@ class UserInterface(process_pairs.PrimaryBackupSwitchable):
                           floor_panel.request_manager.RequestManager)
 
         self.__floor = config.get_int("floor", "floor")
-        self.__period = config.get_float("floor", "period", 0.1)
+        self.__period = config.get_float("floor", "ui_monitor_period", 0.1)
 
         self.__transaction_manager = _transaction_manager
         self.__driver = _driver
@@ -145,9 +145,9 @@ class UserInterface(process_pairs.PrimaryBackupSwitchable):
                     logging.debug("Floor %d, button %d is pushed",
                                   self.__floor, button)
 
-                    direction = core.RequestDirection.Up
+                    direction = core.Direction.Up
                     if button == driver.FloorButton.CallDown:
-                        direction = core.RequestDirection.Down
+                        direction = core.Direction.Down
 
                     # Sends request to request manager
                     logging.debug("Send request to the request manager")

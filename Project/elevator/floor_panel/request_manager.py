@@ -19,20 +19,20 @@ import floor_panel.user_interface
 class RequestManagerState(object):
     """
     Internal state of the request manager module. For reducing complexity,
-    all fields are public and directly accessible by the UserInterface class.
+    all fields are public and directly accessible by the RequestManager class.
     """
 
     def __init__(self):
         # Up/down request is waiting to be served
         self.has_request = {
-            core.RequestDirection.Up: False,
-            core.RequestDirection.Down: False,
+            core.Direction.Up: False,
+            core.Direction.Down: False,
         }
 
         # Elevator which is serving the request
         self.serving_elevator = {
-            core.RequestDirection.Up: -1,
-            core.RequestDirection.Down: -1,
+            core.Direction.Up: -1,
+            core.Direction.Down: -1,
         }
 
     def to_dict(self):
@@ -157,7 +157,7 @@ class RequestManager(process_pairs.PrimaryBackupSwitchable,
         elevator, the request will be sent to that elevator.
         """
 
-        assert isinstance(direction, core.RequestDirection)
+        assert isinstance(direction, core.Direction)
 
         self.join_transaction(tid)
         logging.debug("Start adding new request (tid = %s, direction = %s)",
