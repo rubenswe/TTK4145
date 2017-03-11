@@ -76,9 +76,12 @@ class RequestManager(process_pairs.PrimaryBackupSwitchable,
 
         self.__user_interface = None
 
-        self.__curr_state = RequestManagerState()
+        self._state = RequestManagerState()
         self.__prev_state = RequestManagerState()
         self.__can_commit = True
+
+        _network.add_packet_handler("floor_request_served",
+                                    self.__on_request_served_received)
 
     def init(self, user_interface):
         assert isinstance(user_interface,
@@ -101,7 +104,7 @@ class RequestManager(process_pairs.PrimaryBackupSwitchable,
         """
 
         logging.debug("Start exporting current state of request manager")
-        data = self.__curr_state.to_dict()
+        data = self._state.to_dict()
         logging.debug("Finish exporting current state of request manager")
 
         return data
@@ -112,7 +115,7 @@ class RequestManager(process_pairs.PrimaryBackupSwitchable,
         """
 
         logging.debug("Start importing current state of request manager")
-        self.__curr_state.load_dict(state)
+        self._state.load_dict(state)
         logging.debug("Finish importing current state of request manager")
 
     def prepare_to_commit(self, tid):
@@ -131,7 +134,7 @@ class RequestManager(process_pairs.PrimaryBackupSwitchable,
         self.join_transaction(tid)
         logging.debug("Start committing the transaction (tid = %s)", tid)
 
-        self.__prev_state = copy.deepcopy(self.__curr_state)
+        self.__prev_state = copy.deepcopy(self._state)
         self.__can_commit = True
 
         logging.debug("Finish commit the transaction (tid = %s)", tid)
@@ -145,7 +148,7 @@ class RequestManager(process_pairs.PrimaryBackupSwitchable,
         self.join_transaction(tid)
         logging.debug("Start aborting the transaction (tid = %s)", tid)
 
-        self.__curr_state = copy.deepcopy(self.__prev_state)
+        self._state = copy.deepcopy(self.__prev_state)
         self.__can_commit = True
 
         logging.debug("Finish aborting the transaction (tid = %s)", tid)
@@ -163,7 +166,7 @@ class RequestManager(process_pairs.PrimaryBackupSwitchable,
         logging.debug("Start adding new request (tid = %s, direction = %s)",
                       tid, direction)
 
-        state = self.__curr_state
+        state = self._state
 
         if not state.has_request[direction]:
             # Adds new request
@@ -193,10 +196,34 @@ class RequestManager(process_pairs.PrimaryBackupSwitchable,
                     "Cannot send the request to elevator %d", elev_no)
                 self.__can_commit = False
             else:
-                logging.debug("Request has been sent to elevator %d", elev_no)
+                logging.info("Request has been sent to elevator "
+                             "(direction = %d, elevator = %d)",
+                             direction, elev_no)
+
                 state.serving_elevator[direction] = elev_no
 
         logging.debug("Finish adding new request (tid = %s, direction = %s)",
                       tid, direction)
 
         return self.__can_commit
+
+    def __on_request_served_received(self, tid, address, data):
+
+        self.join_transaction(tid)
+        logging.debug("Start handling request served packet from elevator")
+
+        # Extracts the served elevator and direction
+        elevator = data["elevator"]
+        direction = data["direction"]
+
+        # Removes the request from pending request list
+        self._state.has_request[direction] = False
+
+        # Turns off the button light
+
+        logging.info("Request has been served (direction = %d, elevator = %d)",
+                     direction, elevator)
+
+        logging.debug("Finish handling request served packet from elevator")
+
+        return True

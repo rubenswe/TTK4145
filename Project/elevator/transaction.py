@@ -128,34 +128,6 @@ class ResourceManager(object):
     Supports doing task under two-phase commit transaction.
     """
 
-    def __init__(self, transaction_manager):
-        self.__transaction_manager = transaction_manager
-        self.__transaction_id = None
-        self.__resource_lock = threading.Lock()
-
-    def join_transaction(self, tid):
-        """
-        Joins the specified transaction. A resource manager can only join one
-        transaction at the same time.
-        """
-
-        if self.__transaction_id is None or self.__transaction_id != tid:
-            # Joins the transaction
-            self.__resource_lock.acquire()
-
-            self.__transaction_manager.join(tid, self)
-            self.__transaction_id = tid
-
-    def leave_transaction(self, tid):
-        """
-        Leaves the specified transaction after commit/abort.
-        """
-
-        assert tid == self.__transaction_id
-
-        self.__transaction_id = None
-        self.__resource_lock.release()
-
     def prepare_to_commit(self, tid):
         """
         Returns True if the task under the specified transaction has been

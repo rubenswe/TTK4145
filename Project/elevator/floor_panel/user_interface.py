@@ -54,7 +54,7 @@ class UserInterface(process_pairs.PrimaryBackupSwitchable):
     """
 
     def __init__(self):
-        self.__curr_state = UserInterfaceState()
+        self._state = UserInterfaceState()
         self.__prev_state = None
 
         self.__floor = 0
@@ -105,7 +105,7 @@ class UserInterface(process_pairs.PrimaryBackupSwitchable):
 
         logging.debug("Start exporting current state of user interface")
 
-        data = self.__curr_state.to_dict()
+        data = self._state.to_dict()
 
         logging.debug("Finish exporting current state of user interface")
         return data
@@ -117,9 +117,19 @@ class UserInterface(process_pairs.PrimaryBackupSwitchable):
 
         logging.debug("Start importing current state of user interface")
 
-        self.__curr_state.load_dict(state)
+        self._state.load_dict(state)
 
         logging.debug("Finish importing current state of user interface")
+
+    def turn_button_light_off(self, tid, direction):
+        """
+        Turns off the direction button light.
+        """
+
+        logging.debug(
+            "Start turning the button light off (direction = %d)", direction)
+        logging.debug(
+            "Finish turning the button light off (direction = %d)", direction)
 
     def __button_monitor_thread(self):
         """

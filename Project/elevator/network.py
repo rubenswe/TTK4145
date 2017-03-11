@@ -12,6 +12,7 @@ import socket
 import json
 import threading
 import process_pairs
+import transaction
 
 
 class Network(process_pairs.PrimaryBackupSwitchable):
@@ -30,7 +31,11 @@ class Network(process_pairs.PrimaryBackupSwitchable):
         }
     """
 
-    def __init__(self, config):
+    def __init__(self, config, transaction_manager):
+
+        assert isinstance(transaction_manager, transaction.TransactionManager)
+
+        self.__transaction_manager = transaction_manager
 
         self.__address = (
             config.get_value("network", "ip_address", "127.0.0.1"),
@@ -194,9 +199,17 @@ class Network(process_pairs.PrimaryBackupSwitchable):
             # Sends back the reply of the module
             logging.debug("Find and call packet handler")
             if packet_type in self.__handler_list:
-                resp_data = self.__handler_list[packet_type](
-                    address, packet_data)
+                # Starts a new transaction and calls the packet handler
+                tid = self.__transaction_manager.start()
 
+                resp_data = self.__handler_list[packet_type](
+                    tid, address, packet_data)
+
+                success = self.__transaction_manager.finish(tid)
+                if not success:
+                    resp_data = False
+
+                # Answers the client
                 logging.debug("Answer the client")
                 resp_json = json.dumps(resp_data)
 

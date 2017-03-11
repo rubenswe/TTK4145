@@ -17,10 +17,11 @@ import transaction
 import driver
 import floor_panel.user_interface
 import floor_panel.request_manager
+import floor_panel.elevator_monitor
 
 logging.basicConfig(format="%(levelname)8s | %(asctime)s : %(message)s"
                     " (%(module)s.%(funcName)s)",
-                    level=logging.DEBUG)
+                    level=logging.INFO)
 
 
 def main():
@@ -43,13 +44,16 @@ def main():
     node_name = "floor_%d" % args.floor
 
     config = core.Configuration("../config/local-test.conf", node_name)
-    net = network.Network(config)
     transaction_manager = transaction.TransactionManager()
+
+    net = network.Network(config, transaction_manager)
     _driver = driver.Driver(config)
 
     user_interface = floor_panel.user_interface.UserInterface()
     request_manager = floor_panel.request_manager.RequestManager(
         config, transaction_manager, net)
+    elevator_monitor = floor_panel.elevator_monitor.ElevatorMonitor(
+        config, net)
 
     user_interface.init(config, transaction_manager, _driver, request_manager)
     request_manager.init(user_interface)
@@ -59,6 +63,7 @@ def main():
         "driver": _driver,
         "user_interface": user_interface,
         "request_manager": request_manager,
+        "elevator_monitor": elevator_monitor,
     }
 
     # Starts
