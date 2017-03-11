@@ -140,8 +140,7 @@ class UserInterface(process_pairs.PrimaryBackupSwitchable):
                     logging.debug("ELEVATOR PANEL: Button to floor {} is pushed".format(floor+1))
                     # Send a request to the RequestManager
                     logging.debug("ELEVATOR PANEL: Send request to the request manager")
-                    self.__floor[floor] = value
-                    self.__request_manager.add_request(self.__floor)
+                    self.__request_manager.add_request(floor)
 
                 is_pushed[floor] = value
                 # The button should light until the request has been served

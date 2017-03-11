@@ -9,6 +9,17 @@ Proprietary and confidential
 
 import logging
 import configparser
+import enum
+
+
+class Direction(enum.IntEnum):
+    """
+    Direction of request from floors
+    """
+
+    Down = -1,
+    Stop = 0,
+    Up = 1
 
 
 class Configuration(object):
