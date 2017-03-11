@@ -10,6 +10,7 @@ Proprietary and confidential
 import logging
 import core
 import network
+import transaction
 
 
 logging.basicConfig(format="%(levelname)8s | %(asctime)s : %(message)s"
@@ -20,7 +21,7 @@ logging.basicConfig(format="%(levelname)8s | %(asctime)s : %(message)s"
 received_data = None
 
 
-def on_receive_echo(addr, data):
+def on_receive_echo(tid, addr, data):
     """
     Called when the network module has received an echo packet.
     Returns the received data back to the sender.
@@ -42,8 +43,14 @@ def main():
     config_0 = core.Configuration("../config/local-test.conf", "floor_0")
     config_1 = core.Configuration("../config/local-test.conf", "floor_1")
 
-    network_0 = network.Network(config_0)
-    network_1 = network.Network(config_1)
+    transaction_manager_0 = transaction.TransactionManager()
+    transaction_manager_1 = transaction.TransactionManager()
+
+    network_0 = network.Network()
+    network_1 = network.Network()
+
+    network_0.init(config_0, transaction_manager_0)
+    network_1.init(config_1, transaction_manager_1)
 
     network_1.add_packet_handler("echo", on_receive_echo)
 

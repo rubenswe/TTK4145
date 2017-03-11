@@ -13,6 +13,9 @@ import logging
 import process_pairs
 import socket
 import threading
+import module_base
+import core
+import transaction
 
 
 class DriverTarget(enum.IntEnum):
@@ -35,7 +38,7 @@ class FloorButton(enum.IntEnum):
     Command = 2
 
 
-class Driver(process_pairs.PrimaryBackupSwitchable):
+class Driver(module_base.ModuleBase):
     """
     Provides functionalities to interact with hardware components, including:
         - Floor panels buttons and lights
@@ -43,7 +46,22 @@ class Driver(process_pairs.PrimaryBackupSwitchable):
         - An elevator motor and sensors
     """
 
-    def __init__(self, config):
+    def __init__(self):
+        module_base.ModuleBase.__init__(self)
+
+        self.__type = None
+        self.__address = None
+        self.__lib = None
+
+    def init(self, config, transaction_manager):
+        """
+        Initializes the driver module.
+        """
+
+        assert isinstance(config, core.Configuration)
+        assert isinstance(transaction_manager, transaction.TransactionManager)
+
+        module_base.ModuleBase.init(self, transaction_manager)
 
         # Gets the driver target (hardware or simulation)
         self.__type = DriverTarget.Simulation
@@ -75,16 +93,17 @@ class Driver(process_pairs.PrimaryBackupSwitchable):
 
         logging.debug("Finish activating driver module")
 
-    def export_state(self):
+    def export_state(self, tid):
         """
         Returns the current state of the module in serializable format.
         """
 
         logging.debug("Start exporting current state of driver")
         logging.debug("Finish exporting current state of driver")
+
         return dict()
 
-    def import_state(self, state):
+    def import_state(self, tid, state):
         """
         Replaces the current state of the module with the specified one.
         """

@@ -106,7 +106,7 @@ class Configuration(object):
                       section_name, config_name)
 
         # Finds and returns the settings
-        value = default_value
+        value = None
 
         if section_name in self.__config:
             section = self.__config[section_name]
@@ -114,9 +114,18 @@ class Configuration(object):
                 value = section[config_name]
 
         if value is None:
-            logging.fatal(
-                "Configuration not found! (section_name = \"%s\", "
-                "config_name = \"%s\")", section_name, config_name)
+            if default_value is not None:
+                value = default_value
+
+                logging.warning(
+                    "Configuration not found! (section_name = \"%s\", "
+                    "config_name = \"%s\")", section_name, config_name)
+            else:
+                logging.fatal(
+                    "Configuration not found! (section_name = \"%s\", "
+                    "config_name = \"%s\")", section_name, config_name)
+
+                raise RuntimeError()
 
         logging.debug("Finish getting configuration value (value = \"%s\")",
                       value)

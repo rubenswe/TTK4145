@@ -32,7 +32,7 @@ class FakeElevator(object):
         self.__direction = core.Direction.Up
 
         self.__floor_address = [
-            (config.get_value("network", "floor_%d.address" % (index)),
+            (config.get_value("network", "floor_%d.ip_address" % (index)),
              config.get_int("network", "floor_%d.port" % (index)))
             for index in range(self.__floor_number)
         ]
@@ -51,17 +51,19 @@ class FakeElevator(object):
                 if has_internal:
                     req[2] = False
                 if has_up:
-                    req[0] = False
-                    self.__network.send_packet(
+                    ok = self.__network.send_packet(
                         self.__floor_address[self.__position],
                         "floor_request_served",
                         {"elevator": 0, "direction": core.Direction.Up})
+                    if ok:
+                        req[0] = False
                 if has_down:
-                    req[1] = False
-                    self.__network.send_packet(
+                    ok = self.__network.send_packet(
                         self.__floor_address[self.__position],
                         "floor_request_served",
                         {"elevator": 0, "direction": core.Direction.Down})
+                    if ok:
+                        req[1] = False
 
                 time.sleep(1)
 
@@ -123,7 +125,9 @@ def main():
 
     config = core.Configuration("../config/local-test.conf", node_name)
     transaction_manager = transaction.TransactionManager()
-    net = network.Network(config, transaction_manager)
+    net = network.Network()
+    net.init(config, transaction_manager)
+
     fake = FakeElevator(config, net)
 
     net.add_packet_handler(

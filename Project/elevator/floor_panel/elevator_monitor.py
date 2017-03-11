@@ -15,6 +15,7 @@ import process_pairs
 import core
 import transaction
 import network
+import module_base
 
 
 class ElevatorState(object):
@@ -60,7 +61,7 @@ class ElevatorMonitorState(object):
         self.elevator_list = copy.deepcopy(data["elevator_list"])
 
 
-class ElevatorMonitor(process_pairs.PrimaryBackupSwitchable):
+class ElevatorMonitor(module_base.ModuleBase):
     """
     Monitors the current state of all elevators, including:
       - Position
@@ -69,29 +70,53 @@ class ElevatorMonitor(process_pairs.PrimaryBackupSwitchable):
       - Serving requests from this floor
     """
 
-    def __init__(self, config, _network):
+    def __init__(self):
+        module_base.ModuleBase.__init__(self)
+
         logging.debug("Start initializing elevator monitor")
 
+        # Related modules
+        self.__transaction_manager = None
+        self.__network = None
+
+        # Configurations
+        self.__floor = None
+        self.__elevator_number = None
+        self.__period = None
+        self.__max_attempts = None
+        self.__elevator_address = None
+
+        # States
+        self.__elevator_list = None
+
+        logging.debug("Finish initializing elevator monitor")
+
+    def init(self, config, transaction_manager, _network):
+
         assert isinstance(config, core.Configuration)
+        assert isinstance(transaction_manager, transaction.TransactionManager)
         assert isinstance(_network, network.Network)
 
+        module_base.ModuleBase.init(self, transaction_manager)
+
+        # Related modules
+        self.__transaction_manager = transaction_manager
         self.__network = _network
 
+        # Reads the configurations
         self.__floor = config.get_int("floor", "floor")
         self.__elevator_number = config.get_int("core", "elevator_number")
         self.__period = config.get_float("floor", "elevator_monitor_period")
         self.__max_attempts = config.get_int(
             "floor", "elevator_monitor_attempts")
-
-        self._state = ElevatorMonitorState(self.__elevator_number)
-
         self.__elevator_address = [
-            (config.get_value("network", "elevator_%d.address" % (index)),
+            (config.get_value("network", "elevator_%d.ip_address" % (index)),
              config.get_int("network", "elevator_%d.port" % (index)))
             for index in range(self.__elevator_number)
         ]
 
-        logging.debug("Finish initializing elevator monitor")
+        # Initializes state
+        self.__elevator_list = [ElevatorState] * self.__elevator_number
 
     def start(self):
         """
@@ -109,24 +134,32 @@ class ElevatorMonitor(process_pairs.PrimaryBackupSwitchable):
 
         logging.debug("Finish activating elevator monitor module")
 
-    def export_state(self):
+    def export_state(self, tid):
         """
         Returns the current state of the module in serializable format.
         """
 
+        self._join_transaction(tid)
         logging.debug("Start exporting current state of elevator monitor")
-        data = self._state.to_dict()
+
+        state = {
+            "elevator_list": self.__elevator_list,
+        }
+
         logging.debug("Finish exporting current state of elevator monitor")
 
-        return data
+        return state
 
-    def import_state(self, state):
+    def import_state(self, tid, state):
         """
         Replaces the current state of the module with the specified one.
         """
 
+        self._join_transaction(tid)
         logging.debug("Start importing current state of elevator monitor")
-        self._state.load_dict(state)
+
+        self.__elevator_list = state["elevator_list"]
+
         logging.debug("Finish importing current state of elevator monitor")
 
     def __monitor_elevator_state_thread(self, index):
@@ -138,15 +171,22 @@ class ElevatorMonitor(process_pairs.PrimaryBackupSwitchable):
 
         attempts = 0
         address = self.__elevator_address[index]
-        state = self._state.elevator_list[index]
+
         out_data = {"floor": self.__floor}
 
         while True:
             logging.debug("Ask elevator %d for its current state", index)
 
+            # Sends request to get the current elevator state
             attempts += 1
             new_state = self.__network.send_packet(
                 address, "elev_state_get", out_data)
+
+            # Starts new transaction to update the data
+            tid = self.__transaction_manager.start()
+            self._join_transaction(tid)
+
+            state = self.__elevator_list[index]
 
             if new_state is not False:
                 logging.debug(
@@ -166,6 +206,9 @@ class ElevatorMonitor(process_pairs.PrimaryBackupSwitchable):
                 if attempts > self.__max_attempts:
                     state.is_connected = False
 
+            _ = self.__transaction_manager.finish(tid)
+
+            # Waits for a while
             time.sleep(self.__period)
 
         # Never end here

@@ -46,20 +46,20 @@ def main():
     config = core.Configuration("../config/local-test.conf", node_name)
     transaction_manager = transaction.TransactionManager()
 
-    net = network.Network(config, transaction_manager)
-    _driver = driver.Driver(config)
-
+    _network = network.Network()
+    _driver = driver.Driver()
     user_interface = floor_panel.user_interface.UserInterface()
-    request_manager = floor_panel.request_manager.RequestManager(
-        config, transaction_manager, net)
-    elevator_monitor = floor_panel.elevator_monitor.ElevatorMonitor(
-        config, net)
+    request_manager = floor_panel.request_manager.RequestManager()
+    elevator_monitor = floor_panel.elevator_monitor.ElevatorMonitor()
 
+    _network.init(config, transaction_manager)
+    _driver.init(config, transaction_manager)
     user_interface.init(config, transaction_manager, _driver, request_manager)
-    request_manager.init(user_interface)
+    request_manager.init(config, transaction_manager, _network, user_interface)
+    elevator_monitor.init(config, transaction_manager, _network)
 
     module_list = {
-        "network": net,
+        "network": _network,
         "driver": _driver,
         "user_interface": user_interface,
         "request_manager": request_manager,
@@ -67,7 +67,8 @@ def main():
     }
 
     # Starts
-    pair = process_pairs.ProcessPair(config, args)
+    pair = process_pairs.ProcessPair()
+    pair.init(config, transaction_manager, args)
     pair.start(module_list)
 
     while True:

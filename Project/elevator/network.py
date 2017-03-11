@@ -13,6 +13,8 @@ import json
 import threading
 import process_pairs
 import transaction
+import core
+import time
 
 
 class Network(process_pairs.PrimaryBackupSwitchable):
@@ -31,8 +33,25 @@ class Network(process_pairs.PrimaryBackupSwitchable):
         }
     """
 
-    def __init__(self, config, transaction_manager):
+    def __init__(self):
 
+        self.__transaction_manager = None
+
+        self.__address = None
+
+        self.__timeout = 0.0
+        self.__buffer_size = 0
+
+        self.__handler_list = dict()
+
+        self.__server = None
+
+    def init(self, config, transaction_manager):
+        """
+        Initializes the network module.
+        """
+
+        assert isinstance(config, core.Configuration)
         assert isinstance(transaction_manager, transaction.TransactionManager)
 
         self.__transaction_manager = transaction_manager
@@ -44,10 +63,6 @@ class Network(process_pairs.PrimaryBackupSwitchable):
 
         self.__timeout = config.get_float("network", "timeout", 0.5)
         self.__buffer_size = config.get_int("network", "buffer_size", 1024)
-
-        self.__handler_list = dict()
-
-        self.__server = None
 
     def start(self):
         """
@@ -70,6 +85,7 @@ class Network(process_pairs.PrimaryBackupSwitchable):
                               "(address = %s:%d) => Retry",
                               self.__address[0], self.__address[1])
 
+                time.sleep(1)
                 continue
 
         # Starts listening to incoming packets
@@ -80,14 +96,14 @@ class Network(process_pairs.PrimaryBackupSwitchable):
 
         logging.debug("Finish activating UDP server")
 
-    def export_state(self):
+    def export_state(self, tid):
         """
         Implements process_pairs.PrimaryBackupSwitchable interface.
         This module doesn't have any internal state.
         """
         return dict()
 
-    def import_state(self, state):
+    def import_state(self, tid, state):
         """
         Implements the process_pairs.PrimaryBackupSwitchable interface.
         This module doesn't have any internal state.

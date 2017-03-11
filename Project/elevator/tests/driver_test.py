@@ -12,6 +12,7 @@ import core
 import network
 import process_pairs
 import driver
+import transaction
 
 
 logging.basicConfig(format="%(levelname)8s | %(asctime)s : %(message)s"
@@ -29,15 +30,21 @@ def main():
 
     # Initializes
     config = core.Configuration("../config/local-test.conf", "floor_0")
-    net = network.Network(config)
-    drv = driver.Driver(config)
+    transaction_manager = transaction.TransactionManager()
+
+    net = network.Network()
+    drv = driver.Driver()
+
+    net.init(config, transaction_manager)
+    drv.init(config, transaction_manager)
 
     module_list = {
         "network": net,
         "driver": drv,
     }
 
-    pp = process_pairs.ProcessPair(config, args)
+    pp = process_pairs.ProcessPair()
+    pp.init(config, transaction_manager, args)
     pp.start(module_list)
 
     drv.set_motor_direction(1)

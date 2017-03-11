@@ -11,6 +11,7 @@ import logging
 import random
 import transaction
 import time
+import module_base
 
 
 logging.basicConfig(format="%(levelname)8s | %(asctime)s : %(message)s"
@@ -18,54 +19,57 @@ logging.basicConfig(format="%(levelname)8s | %(asctime)s : %(message)s"
                     level=logging.INFO)
 
 
-class Counter(transaction.ResourceManager):
+class Counter(module_base.ModuleBase):
 
-    def __init__(self, transaction_manager):
-        transaction.ResourceManager.__init__(self, transaction_manager)
+    def __init__(self):
+        module_base.ModuleBase.__init__(self)
+
         self.__count = 0
 
-        self.__prev_state = None
+    def init(self, transaction_manager):
+        module_base.ModuleBase.init(self, transaction_manager)
+
+    def start(self):
+        pass
+
+    def export_state(self, tid):
+        self._join_transaction(tid)
+        return {"counter": self.__count}
+
+    def import_state(self, tid, state):
+        self._join_transaction(tid)
+        self.__count = state["counter"]
 
     def increase(self, tid):
-        self.join_transaction(tid)
-        self.__prev_state = self.__count
+        self._join_transaction(tid)
 
         self.__count += 1
         logging.info("Counter is increased to %d", self.__count)
 
-    def prepare_to_commit(self, tid):
-        return True
 
-    def commit(self, tid):
-        self.leave_transaction(tid)
+class RandomError(module_base.ModuleBase):
 
-    def abort(self, tid):
-        self.__count = self.__prev_state
-        logging.info("Counter is rolled back to %d", self.__count)
-        self.leave_transaction(tid)
+    def __init__(self):
+        module_base.ModuleBase.__init__(self)
 
+    def init(self, transaction_manager):
+        module_base.ModuleBase.init(self, transaction_manager)
 
-class RandomError(transaction.ResourceManager):
+    def export_state(self, tid):
+        self._join_transaction(tid)
+        return None
 
-    def __init__(self, transaction_manager):
-        transaction.ResourceManager.__init__(self, transaction_manager)
+    def import_state(self, tid, state):
+        self._join_transaction(tid)
 
     def do_work(self, tid):
-        self.join_transaction(tid)
+        self._join_transaction(tid)
 
-    def prepare_to_commit(self, tid):
         r = random.randrange(100)
         ok = r < 75
         if not ok:
             logging.error("Error occurred!")
-
-        return ok
-
-    def commit(self, tid):
-        self.leave_transaction(tid)
-
-    def abort(self, tid):
-        self.leave_transaction(tid)
+            self._set_can_commit(tid, False)
 
 
 def main():
@@ -74,8 +78,12 @@ def main():
     """
 
     transaction_manager = transaction.TransactionManager()
-    counter = Counter(transaction_manager)
-    random_error = RandomError(transaction_manager)
+
+    counter = Counter()
+    random_error = RandomError()
+
+    counter.init(transaction_manager)
+    random_error.init(transaction_manager)
 
     while True:
         tid = transaction_manager.start()

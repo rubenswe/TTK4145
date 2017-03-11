@@ -9,12 +9,12 @@ Proprietary and confidential
 
 import logging
 import threading
-import process_pairs
-import driver
 import time
+import driver
 import core
 import transaction
 import floor_panel
+import module_base
 
 
 class UserInterfaceState(object):
@@ -46,7 +46,7 @@ class UserInterfaceState(object):
         self.light_down = data["light_down"]
 
 
-class UserInterface(process_pairs.PrimaryBackupSwitchable):
+class UserInterface(module_base.ModuleBase):
     """
     Provides user interacting interface, including:
         - Up/Down button
@@ -54,35 +54,41 @@ class UserInterface(process_pairs.PrimaryBackupSwitchable):
     """
 
     def __init__(self):
-        self._state = UserInterfaceState()
-        self.__prev_state = None
+        module_base.ModuleBase.__init__(self)
 
+        # Related modules
+        self.__transaction_manager = None
+        self.__driver = None
+        self.__request_manager = None
+
+        # Configurations
         self.__floor = 0
         self.__period = 0.0
 
-        self.__transaction_manager = None
-        self.__driver = None
+        # States
+        self.__light_up = False  # Whether the up button light is on
+        self.__light_down = False  # Whether the down button light is on
 
-        self.__request_manager = None
-
-    def init(self, config, _transaction_manager, _driver, request_manager):
+    def init(self, config, transaction_manager, _driver, request_manager):
         """
-        Initializes the user interface for floor panel
+        Initializes the user interface for floor panel.
         """
 
         assert isinstance(config, core.Configuration)
-        assert isinstance(_transaction_manager, transaction.TransactionManager)
+        assert isinstance(transaction_manager, transaction.TransactionManager)
         assert isinstance(_driver, driver.Driver)
         assert isinstance(request_manager,
                           floor_panel.request_manager.RequestManager)
 
+        module_base.ModuleBase.init(self, transaction_manager)
+
+        self.__transaction_manager = transaction_manager
+        self.__driver = _driver
+        self.__request_manager = request_manager
+
+        # Reads the configuration
         self.__floor = config.get_int("floor", "floor")
         self.__period = config.get_float("floor", "ui_monitor_period", 0.1)
-
-        self.__transaction_manager = _transaction_manager
-        self.__driver = _driver
-
-        self.__request_manager = request_manager
 
     def start(self):
         """
@@ -98,26 +104,32 @@ class UserInterface(process_pairs.PrimaryBackupSwitchable):
 
         logging.debug("Finish activating user interface module")
 
-    def export_state(self):
+    def export_state(self, tid):
         """
         Returns the current state of the module in serializable format.
         """
 
+        self._join_transaction(tid)
         logging.debug("Start exporting current state of user interface")
 
-        data = self._state.to_dict()
+        state = {
+            "light_up": self.__light_up,
+            "light_down": self.__light_down,
+        }
 
         logging.debug("Finish exporting current state of user interface")
-        return data
+        return state
 
-    def import_state(self, state):
+    def import_state(self, tid, state):
         """
         Replaces the current state of the module with the specified one.
         """
 
+        self._join_transaction(tid)
         logging.debug("Start importing current state of user interface")
 
-        self._state.load_dict(state)
+        self.__light_up = state["light_up"]
+        self.__light_down = state["light_down"]
 
         logging.debug("Finish importing current state of user interface")
 

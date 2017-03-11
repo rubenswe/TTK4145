@@ -1,7 +1,10 @@
 """
-Created on Feb 9, 2017
+Copyright (c) 2017 Viet-Hoa Do <viethoad[at]stud.ntnu.com>
+              2017 Ruben Svendsen Wedul <rubensw[at]stud.ntnu.no>
+All Rights Reserved
 
-@author: Viet-Hoa Do
+Unauthorized copying of this file, via any medium is strictly prohibited
+Proprietary and confidential
 """
 
 import time
@@ -11,6 +14,8 @@ import argparse
 import core
 import network
 import process_pairs
+import transaction
+import module_base
 
 
 logging.basicConfig(format="%(levelname)8s | %(asctime)s : %(message)s"
@@ -18,13 +23,19 @@ logging.basicConfig(format="%(levelname)8s | %(asctime)s : %(message)s"
                     level=logging.INFO)
 
 
-class Counter(process_pairs.PrimaryBackupSwitchable):
+class Counter(module_base.ModuleBase):
 
     def __init__(self):
-        self.__lock_state = threading.Lock()
+        module_base.ModuleBase.__init__(self)
 
-        self.__counter = 0
+        self.__transaction_manager = None
+
         self.__running = True
+        self.__counter = 0
+
+    def init(self, transaction_manager):
+        module_base.ModuleBase.init(self, transaction_manager)
+        self.__transaction_manager = transaction_manager
 
     def start(self):
         print("Start counting from %d" % (self.__counter))
@@ -33,26 +44,25 @@ class Counter(process_pairs.PrimaryBackupSwitchable):
         self.__running = True
         thread.start()
 
+    def export_state(self, tid):
+        self._join_transaction(tid)
+        return {"counter": self.__counter}
+
+    def import_state(self, tid, state):
+        self._join_transaction(tid)
+        self.__counter = state["counter"]
+
     def __count_thread(self):
         while self.__running:
-            self.__lock_state.acquire()
+            tid = self.__transaction_manager.start()
+            self._join_transaction(tid)
+
             self.__counter += 1
             print("Counter = %d" % (self.__counter))
-            self.__lock_state.release()
+
+            self.__transaction_manager.finish(tid)
 
             time.sleep(1)
-
-    def export_state(self):
-        self.__lock_state.acquire()
-        state = {"counter": self.__counter}
-        self.__lock_state.release()
-
-        return state
-
-    def import_state(self, state):
-        self.__lock_state.acquire()
-        self.__counter = state["counter"]
-        self.__lock_state.release()
 
 
 def main():
@@ -65,15 +75,22 @@ def main():
 
     # Initializes
     config = core.Configuration("../config/local-test.conf", "floor_0")
-    net = network.Network(config)
+    transaction_manager = transaction.TransactionManager()
+
+    net = network.Network()
     counter = Counter()
+
+    net.init(config, transaction_manager)
+    counter.init(transaction_manager)
 
     module_list = {
         "network": net,
-        "counter": counter
+        "counter": counter,
     }
 
-    pp = process_pairs.ProcessPair(config, args)
+    pp = process_pairs.ProcessPair()
+    pp.init(config, transaction_manager, args)
+
     pp.start(module_list)
 
     while True:

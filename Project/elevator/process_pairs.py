@@ -13,6 +13,8 @@ import time
 import subprocess
 import sys
 from multiprocessing.connection import Listener, Client
+import core
+import transaction
 
 
 class PrimaryBackupSwitchable(object):
@@ -33,7 +35,7 @@ class PrimaryBackupSwitchable(object):
 
         raise NotImplementedError()
 
-    def export_state(self):
+    def export_state(self, tid):
         """
         Returns the current state of the module in serializable format. The
         state will be stored and shared with other system (backup) in network.
@@ -43,7 +45,7 @@ class PrimaryBackupSwitchable(object):
 
         raise NotImplementedError()
 
-    def import_state(self, state):
+    def import_state(self, tid, state):
         """
         Replaces the current state of the module with the specified one. This
         function is reversed version of export_state.
@@ -72,19 +74,31 @@ class ProcessPair(object):
         - process_pairs.period: state sending period in seconds (float)
     """
 
-    def __init__(self, config, arguments):
+    def __init__(self):
         self.__enabled = True
 
         self.__is_primary = False
         self.__module_list = None
 
-        self.__config = config
-        self.__arguments = arguments
+        self.__config = None
+        self.__arguments = None
 
         self.__address = None
         self.__period = None
 
         self.__is_channel_created = None
+
+    def init(self, config, transaction_manager, arguments):
+        """
+        Initializes the process pairs controller.
+        """
+
+        assert isinstance(config, core.Configuration)
+        assert isinstance(transaction_manager, transaction.TransactionManager)
+
+        self.__config = config
+        self.__transaction_manager = transaction_manager
+        self.__arguments = arguments
 
     def start(self, module_list):
         """
@@ -217,9 +231,11 @@ class ProcessPair(object):
                             logging.debug(
                                 "Get the current state of all modules")
 
-                            states = {name: module.export_state()
+                            tid = self.__transaction_manager.start()
+                            states = {name: module.export_state(tid)
                                       for (name, module) in
                                       self.__module_list.items()}
+                            self.__transaction_manager.finish(tid)
 
                             # Sends to the backup and waits for acknowledgement
                             logging.debug("Send state to the backup")
@@ -258,8 +274,11 @@ class ProcessPair(object):
                     # Imports the received state
                     logging.debug(
                         "Import the current state of primary to backup")
+
+                    tid = self.__transaction_manager.start()
                     for (name, module) in self.__module_list.items():
-                        module.import_state(states[name])
+                        module.import_state(tid, states[name])
+                    self.__transaction_manager.finish(tid)
 
                     # Sends acknowledgement
                     logging.debug("Send ACK to the primary")
