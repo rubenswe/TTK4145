@@ -14,30 +14,69 @@ import time
 import core
 import transaction
 import elevator
+from elevator import request_manager
+
+
+class UserInterFaceState(object):
+    """
+    Internal state of the user interface module. For reducing complexity,
+    all fields are public and directly accessible by the UserInterface class.
+    """
+
+    def __init__(self):
+        self.floor = [0, 0, 0, 0]
+        self.light_door = False
+
+    def to_dict(self):
+        """
+        Returns the dictionary which contains the user interface state.
+        """
+
+        return {
+            "light_floor": self.floor,
+            "light_door": self.light_door
+        }
+
+    def load_dict(self, data):
+        """
+        Imports the user interface state from the specified dictionary
+        """
+        self.floor = data["light_floor"]
+        self.light_door = data["light_door"]
 
 
 class UserInterface(process_pairs.PrimaryBackupSwitchable):
     """
     Provides user interacting interface, including:
-        - Start/Stop(not needed)
         - Target(Destination) floor(from 0 to 3)
         - Door open/closed light
-        - Obstruction(not needed)
     """
 
-    def __init__(self, config):
-        """
-         The elevator should be initialized with:
-            - self.state # position and direction(UP=1, STOP=0, DOWN=-1)
-            - self. counter #  for testing?
-            - self.running #  not needed?
-            - self.door_state
-        """
-        self.__lock_state = threading.Lock()
-        self.__driver = driver.Driver(config)
-        self.__target_floor = 0
+    def __init__(self):
+        self.curr_state = UserInterFaceState()
+        self.prev_state = None
 
-        pass
+        self.__floor = [0, 0, 0, 0]
+        self.__period = 0.0
+
+        self.__transaction_manager = None
+        self.__driver = None
+
+        self.__request_manager = None
+        # self.__lock_state = threading.Lock()
+
+    def init(self, config, _driver, _request_manager):
+        """
+        Initializes the user interface for the elevator panel
+        """
+
+        assert isinstance(config, core.Configuration)
+        # assert isinstance(_transaction_manager, transaction.TransactionManager)
+        assert isinstance(_driver, driver.Driver)
+        # assert isinstance(request_manager, elevator.request_manager.RequestManager)
+
+        self.__driver = _driver
+        self.__request_manager = _request_manager
 
     def start(self):
         """
@@ -63,15 +102,15 @@ class UserInterface(process_pairs.PrimaryBackupSwitchable):
 
         logging.debug("Start exporting current state of user interface")
 
-        self.__lock_state.acquire()
-        state = {
-            "type": self.state,  # elevator_state?
-            "data": None
-        }
-        self.__lock_state.release()
+        # self.__lock_state.acquire()
+        # state = {
+        #     "type": self.state,
+        #     "data": None
+        # }
+        # self.__lock_state.release()
 
         logging.debug("Finish exporting current state of user interface")
-        return state
+        # return state
 
     def import_state(self, state):
         """
@@ -99,4 +138,11 @@ class UserInterface(process_pairs.PrimaryBackupSwitchable):
                 if is_pushed[floor] == 0 and value == 1:
                     # This button is pushed
                     logging.debug("ELEVATOR PANEL: Button to floor {} is pushed".format(floor+1))
+                    # Send a request to the RequestManager
+                    logging.debug("ELEVATOR PANEL: Send request to the request manager")
+                    self.__floor[floor] = value
+                    self.__request_manager.add_request(self.__floor)
+
                 is_pushed[floor] = value
+                # The button should light until the request has been served
+                # self.__floor[floor] = value

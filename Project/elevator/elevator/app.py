@@ -15,6 +15,7 @@ import process_pairs
 import transaction
 import driver
 from elevator import user_interface
+from elevator import request_manager
 
 logging.basicConfig(format="%(levelname)8s | %(asctime)s : %(message)s"
                            " (%(module)s.%(funcName)s)",
@@ -38,13 +39,16 @@ def main():
     config = core.Configuration("../config/local-test.conf", node_name)
     net = network.Network(config)
     transaction_manager = transaction.TransactionManager()
-    _user_interface = user_interface.UserInterface(config)
+    _user_interface = user_interface.UserInterface()
     _driver = driver.Driver(config)
+    _request_manager = request_manager.RequestManager(config)
+    _user_interface.init(config, _driver, _request_manager)
 
     module_list = {
         "network": net,
+        "driver": _driver,
         "user_interface": _user_interface,
-        "driver": _driver
+        "request_manager": _request_manager
     }
 
     # Starts
@@ -54,9 +58,9 @@ def main():
     while True:
         #  Wait for commands from the elevator panel
 
-        # if _driver.get_button_signal(2, 1):
-        #     _driver.set_button_lamp(2, 1, 1)
-        #     _driver.set_motor_direction(-1)
+        if _driver.get_button_signal(2, 1):
+            _driver.set_button_lamp(2, 1, 1)
+            _driver.set_motor_direction(-1)
         # if _driver.get_floor_sensor_signal() == 1:
         #     _driver.set_button_lamp(2, 1, 0)
         #     _driver.set_motor_direction(0)
