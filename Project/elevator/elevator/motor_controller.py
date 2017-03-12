@@ -14,6 +14,7 @@ import driver
 import threading
 import core
 import time
+import elevator
 
 
 class MotorController(module_base.ModuleBase):
@@ -21,7 +22,9 @@ class MotorController(module_base.ModuleBase):
     def __init__(self):
         module_base.ModuleBase.__init__(self)
 
+        self.__transaction_manager = None
         self.__driver = None
+        self.__request_manager = None
 
         self.__period = None
 
@@ -29,14 +32,18 @@ class MotorController(module_base.ModuleBase):
         self.__prev_floor = -1
         self.__direction = core.Direction.Stop
 
-    def init(self, config, transaction_manager, _driver):
+    def init(self, config, transaction_manager, _driver, request_manager):
         assert isinstance(config, core.Configuration)
         assert isinstance(transaction_manager, transaction.TransactionManager)
         assert isinstance(_driver, driver.Driver)
+        assert isinstance(request_manager,
+                          elevator.request_manager.RequestManager)
 
         module_base.ModuleBase.init(self, transaction_manager)
 
+        self.__transaction_manager = transaction_manager
         self.__driver = _driver
+        self.__request_manager = request_manager
 
         self.__period = config.get_float("elevator", "motor_controller_period")
 
@@ -65,6 +72,10 @@ class MotorController(module_base.ModuleBase):
         self.__target_floor = target_floor
 
     def __control_motor_thread(self):
+
+        tid = self.__transaction_manager.start()
+        self._join_transaction(tid)
+
         self.__driver.set_motor_direction(driver.MotorDirection.Down)
         self.__direction = core.Direction.Down
 
@@ -73,16 +84,24 @@ class MotorController(module_base.ModuleBase):
             if self.__prev_floor != -1:
                 break
 
+        self.__transaction_manager.finish(tid)
+
         while True:
+            tid = self.__transaction_manager.start()
+            self._join_transaction(tid)
+            changed = False  # Whether position or direction is changed
+
             if self.__prev_floor < self.__target_floor:
                 if self.__direction != core.Direction.Up:
                     self.__driver.set_motor_direction(driver.MotorDirection.Up)
                     self.__direction = core.Direction.Up
+                    changed = True
             elif self.__prev_floor > self.__target_floor:
                 if self.__direction != core.Direction.Down:
                     self.__driver.set_motor_direction(
                         driver.MotorDirection.Down)
                     self.__direction = core.Direction.Down
+                    changed = True
 
             curr_position = self.__driver.get_floor_sensor_signal()
             if curr_position == self.__target_floor:
@@ -90,8 +109,18 @@ class MotorController(module_base.ModuleBase):
                     self.__driver.set_motor_direction(
                         driver.MotorDirection.Stop)
                     self.__direction = core.Direction.Stop
+                    changed = True
 
             if curr_position != -1:
+                if self.__prev_floor != curr_position:
+                    changed = True
+
                 self.__prev_floor = curr_position
+
+            if changed:
+                self.__request_manager.on_position_and_motor_direction_changed(
+                    tid, self.__prev_floor, self.__direction)
+
+            _ = self.__transaction_manager.finish(tid)
 
             time.sleep(self.__period)

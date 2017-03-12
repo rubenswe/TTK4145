@@ -13,7 +13,7 @@ import driver
 import time
 import core
 import transaction
-import elevator
+import elevator.request_manager
 import module_base
 
 
@@ -36,7 +36,7 @@ class UserInterface(module_base.ModuleBase):
         self.__request_manager = None
         # self.__lock_state = threading.Lock()
 
-    def init(self, config, transaction_manager, _driver):
+    def init(self, config, transaction_manager, _driver, request_manager):
         """
         Initializes the user interface for the elevator panel
         """
@@ -44,11 +44,14 @@ class UserInterface(module_base.ModuleBase):
         assert isinstance(config, core.Configuration)
         assert isinstance(transaction_manager, transaction.TransactionManager)
         assert isinstance(_driver, driver.Driver)
+        assert isinstance(request_manager,
+                          elevator.request_manager.RequestManager)
 
         module_base.ModuleBase.init(self, transaction_manager)
 
         self.__transaction_manager = transaction_manager
         self.__driver = _driver
+        self.__request_manager = request_manager
 
         self.__period = config.get_float("elevator", "ui_monitor_period")
 
@@ -124,7 +127,7 @@ class UserInterface(module_base.ModuleBase):
                     # Send a request to the RequestManager
                     logging.debug(
                         "ELEVATOR PANEL: Send request to the request manager")
-                    # self.__request_manager.add_request(floor)
+                    self.__request_manager.add_cabin_request(tid, floor)
 
                     self.__transaction_manager.finish(tid)
 

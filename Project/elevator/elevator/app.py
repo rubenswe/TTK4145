@@ -16,6 +16,7 @@ import process_pairs
 import transaction
 import driver
 import elevator.user_interface
+import elevator.motor_controller
 
 logging.basicConfig(format="%(levelname)8s | %(asctime)s : %(message)s"
                     " (%(module)s.%(funcName)s)",
@@ -47,15 +48,23 @@ def main():
     _network = network.Network()
     _driver = driver.Driver()
     user_interface = elevator.user_interface.UserInterface()
+    request_manager = elevator.request_manager.RequestManager()
+    motor_controller = elevator.motor_controller.MotorController()
 
     _network.init(config, transaction_manager)
     _driver.init(config, transaction_manager)
-    user_interface.init(config, transaction_manager, _driver)
+    user_interface.init(config, transaction_manager, _driver, request_manager)
+    request_manager.init(config, transaction_manager, _network,
+                         motor_controller)
+    motor_controller.init(config, transaction_manager, _driver,
+                          request_manager)
 
     module_list = {
         "network": _network,
         "driver": _driver,
         "user_interface": user_interface,
+        "request_manager": request_manager,
+        "motor_controller": motor_controller,
     }
 
     # Starts
