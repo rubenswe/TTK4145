@@ -59,6 +59,14 @@ class ModuleBase(process_pairs.PrimaryBackupSwitchable,
             self.__prev_state = copy.deepcopy(self.export_state(tid))
             self.__can_commit = True
 
+    def _get_can_commit(self, tid):
+        """
+        Gets whether the specified transaction can commit.
+        """
+
+        self._join_transaction(tid)
+        return self.__can_commit
+
     def _set_can_commit(self, tid, can_commit):
         """
         Sets whether the specified transaction can commit.

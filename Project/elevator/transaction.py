@@ -18,7 +18,7 @@ class TransactionManager(object):
     """
 
     def __init__(self):
-        self.__lock = threading.Lock()
+        self.__lock = threading.Condition()
         self.__transaction_list = dict()
 
     def start(self):
@@ -27,6 +27,12 @@ class TransactionManager(object):
         """
 
         self.__lock.acquire()
+
+        # Transaction limit
+        # (only one transaction at a time to prevent deadlock)
+        while len(self.__transaction_list) >= 1:
+            self.__lock.wait()
+
         logging.debug("Start creating new transaction")
 
         # Generates a unique transaction identifier
@@ -97,14 +103,19 @@ class TransactionManager(object):
                 for resource in transaction.resources:
                     resource.commit(tid)
             else:
-                logging.debug("Abort the transaction (tid = %s)", tid)
+                logging.error("Abort the transaction (tid = %s)", tid)
                 for resource in transaction.resources:
                     resource.abort(tid)
+
+            # Removes transaction
+            del self.__transaction_list[tid]
 
         else:
             logging.error("Transaction not found! (tid = %s)", tid)
 
         logging.debug("Finish ending transaction (tid = %s)", tid)
+
+        self.__lock.notifyAll()
         self.__lock.release()
 
         return can_commit

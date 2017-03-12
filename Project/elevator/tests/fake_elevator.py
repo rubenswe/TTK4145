@@ -14,6 +14,7 @@ import network
 import driver
 import transaction
 import threading
+import random
 
 logging.basicConfig(format="%(levelname)8s | %(asctime)s : %(message)s"
                     " (%(module)s.%(funcName)s)",
@@ -23,6 +24,8 @@ logging.basicConfig(format="%(levelname)8s | %(asctime)s : %(message)s"
 class FakeElevator(object):
 
     def __init__(self, config, _network):
+        self.__lock = threading.RLock()
+
         self.__network = _network
 
         self.__floor_number = config.get_int("core", "floor_number")
@@ -42,6 +45,10 @@ class FakeElevator(object):
 
     def __elevator_moving_thread(self):
         while True:
+            self.__lock.acquire()
+            logging.info("Current position %d, direction %s",
+                         self.__position, self.__direction)
+
             req = self.__requests[self.__position]
             has_internal = req[2]
             has_up = (req[0] and self.__direction == core.Direction.Up)
@@ -65,7 +72,7 @@ class FakeElevator(object):
                     if ok:
                         req[1] = False
 
-                time.sleep(1)
+                time.sleep(random.uniform(1, 2))
 
             if self.__direction == core.Direction.Up:
                 self.__position += 1
@@ -76,9 +83,14 @@ class FakeElevator(object):
             elif self.__position == self.__floor_number - 1:
                 self.__direction = core.Direction.Down
 
-            time.sleep(1)
+            self.__lock.release()
+
+            time.sleep(random.uniform(1, 2))
 
     def on_elev_request_add_received(self, tid, addr, data):
+
+        self.__lock.acquire()
+
         floor = data["floor"]
         direction = data["direction"]
 
@@ -87,9 +99,14 @@ class FakeElevator(object):
         elif direction == core.Direction.Down:
             self.__requests[floor][1] = True
 
+        self.__lock.release()
+
         return True
 
     def on_elev_state_get_received(self, tid, addr, data):
+
+        self.__lock.acquire()
+
         floor = data["floor"]
         serving_requests = list()
         if self.__requests[floor][0]:
@@ -102,6 +119,8 @@ class FakeElevator(object):
             "direction": self.__direction,
             "serving_requests": serving_requests,
         }
+
+        self.__lock.release()
 
         return state
 
@@ -118,10 +137,14 @@ def main():
         "--mode", type=str, default="primary",
         help="Process pairs mode (primary/backup). Default: primary")
 
+    parser.add_argument(
+        "--index", type=int, default=0)
+
     args = parser.parse_args()
 
     # Initializes modules
-    node_name = "elevator_0"  # input("Node name: ")
+    node_name = "elevator_%d" % args.index
+    print("Node name: %s" % node_name)
 
     config = core.Configuration("../config/local-test.conf", node_name)
     transaction_manager = transaction.TransactionManager()

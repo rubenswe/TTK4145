@@ -12,6 +12,7 @@ import random
 import transaction
 import time
 import module_base
+import threading
 
 
 logging.basicConfig(format="%(levelname)8s | %(asctime)s : %(message)s"
@@ -72,6 +73,17 @@ class RandomError(module_base.ModuleBase):
             self._set_can_commit(tid, False)
 
 
+def thread1(index, transaction_manager, counter, random_error):
+    while True:
+        print("-------------- %d -----------------" % (index))
+        tid = transaction_manager.start()
+        counter.increase(tid)
+        random_error.do_work(tid)
+        transaction_manager.finish(tid)
+
+        time.sleep(1)
+
+
 def main():
     """
     Starts
@@ -85,13 +97,15 @@ def main():
     counter.init(transaction_manager)
     random_error.init(transaction_manager)
 
-    while True:
-        tid = transaction_manager.start()
-        counter.increase(tid)
-        random_error.do_work(tid)
-        ok = transaction_manager.finish(tid)
+    threading.Thread(target=thread1,
+                     args=(1, transaction_manager, counter, random_error),
+                     daemon=True).start()
+    threading.Thread(target=thread1,
+                     args=(2, transaction_manager, counter, random_error),
+                     daemon=True).start()
 
-        time.sleep(1)
+    while True:
+        time.sleep(100)
 
 if __name__ == "__main__":
     main()

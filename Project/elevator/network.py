@@ -195,7 +195,11 @@ class Network(process_pairs.PrimaryBackupSwitchable):
 
             # Waits for incoming packet
             logging.debug("Wait for incoming packet")
-            data, address = self.__server.recvfrom(self.__buffer_size)
+
+            try:
+                data, address = self.__server.recvfrom(self.__buffer_size)
+            except OSError:
+                continue
 
             try:
                 packet = json.loads(data.decode())
@@ -240,3 +244,6 @@ class Network(process_pairs.PrimaryBackupSwitchable):
                     address[0], address[1], packet_type)
 
         logging.debug("Finish listening to incoming packet")
+
+    def __handle_incoming_packet(self, address, data):
+        pass

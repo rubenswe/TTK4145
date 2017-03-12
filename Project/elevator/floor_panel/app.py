@@ -55,8 +55,10 @@ def main():
     _network.init(config, transaction_manager)
     _driver.init(config, transaction_manager)
     user_interface.init(config, transaction_manager, _driver, request_manager)
-    request_manager.init(config, transaction_manager, _network, user_interface)
-    elevator_monitor.init(config, transaction_manager, _network)
+    request_manager.init(config, transaction_manager, _network,
+                         user_interface, elevator_monitor)
+    elevator_monitor.init(config, transaction_manager, _network,
+                          request_manager)
 
     module_list = {
         "network": _network,
