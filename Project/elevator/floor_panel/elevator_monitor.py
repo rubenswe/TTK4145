@@ -180,7 +180,14 @@ class ElevatorMonitor(module_base.ModuleBase):
                             distance += elev_position - self.__floor
                             break
 
-                    if elev_direction == core.Direction.Up:
+                    if elev_direction == core.Direction.Stop:
+                        if elev_position <= self.__floor:
+                            distance += self.__floor - elev_position
+                            break
+                        else:
+                            distance += elev_position - self.__floor
+                            break
+                    elif elev_direction == core.Direction.Up:
                         distance += (self.__floor_number - 1) - elev_position
                         elev_direction = core.Direction.Down
                         elev_position = self.__floor_number - 1

@@ -76,13 +76,14 @@ class MotorController(module_base.ModuleBase):
         tid = self.__transaction_manager.start()
         self._join_transaction(tid)
 
-        self.__driver.set_motor_direction(driver.MotorDirection.Down)
-        self.__direction = core.Direction.Down
+        if self.__prev_floor == -1:
+            self.__driver.set_motor_direction(driver.MotorDirection.Down)
+            self.__direction = core.Direction.Down
 
-        while True:
-            self.__prev_floor = self.__driver.get_floor_sensor_signal()
-            if self.__prev_floor != -1:
-                break
+            while True:
+                self.__prev_floor = self.__driver.get_floor_sensor_signal()
+                if self.__prev_floor != -1:
+                    break
 
         self.__transaction_manager.finish(tid)
 
