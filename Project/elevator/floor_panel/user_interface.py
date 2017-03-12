@@ -97,6 +97,11 @@ class UserInterface(module_base.ModuleBase):
 
         logging.debug("Start activating user interface module")
 
+        # Updates the button indicators
+        tid = self.__transaction_manager.start()
+        self._join_transaction(tid)
+        _ = self.__transaction_manager.finish(tid)  # Updates when commit
+
         # Starts button monitoring thread
         logging.debug("Start button monitoring thread")
         threading.Thread(
@@ -133,13 +138,64 @@ class UserInterface(module_base.ModuleBase):
 
         logging.debug("Finish importing current state of user interface")
 
+    def commit(self, tid):
+        """
+        Commits the transaction. Before committing, updates the button lights
+        to make sure that the button lights can only be changed when
+        the transaction is success.
+        """
+
+        self._join_transaction(tid)
+        self.__update_button_light(tid)
+
+        module_base.ModuleBase.commit(self, tid)
+
+    def __update_button_light(self, tid):
+        """
+        Turns button lights on/off. This function should be called at the end
+        of a transaction to make sure that the button indicators are only
+        changed when a transaction is ok.
+        """
+
+        self._join_transaction(tid)
+        logging.debug("Start updating the button lights")
+
+        if self.__light_up:
+            self.__driver.set_button_lamp(
+                driver.FloorButton.CallUp, self.__floor, 1)
+        else:
+            self.__driver.set_button_lamp(
+                driver.FloorButton.CallUp, self.__floor, 0)
+
+        if self.__light_down:
+            self.__driver.set_button_lamp(
+                driver.FloorButton.CallDown, self.__floor, 1)
+        else:
+            self.__driver.set_button_lamp(
+                driver.FloorButton.CallDown, self.__floor, 0)
+
+        logging.debug("Finish updating the button lights")
+
     def turn_button_light_off(self, tid, direction):
         """
         Turns off the direction button light.
         """
 
+        self._join_transaction(tid)
         logging.debug(
             "Start turning the button light off (direction = %d)", direction)
+
+        if direction == core.Direction.Up:
+            button = driver.FloorButton.CallUp
+            self.__light_up = False
+        else:
+            button = driver.FloorButton.CallDown
+            self.__light_down = False
+
+        # Not turns of the light yet, wait for commit
+
+        self.__driver.set_button_lamp(button, self.__floor, 0)
+
         logging.debug(
             "Finish turning the button light off (direction = %d)", direction)
 

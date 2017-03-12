@@ -240,7 +240,7 @@ class RequestManager(module_base.ModuleBase):
         self.__has_request[direction] = False
 
         # Turns off the button light
-        # TODO: Turn off the button light
+        self.__user_interface.turn_button_light_off(tid, direction)
 
         logging.info("Request has been served (direction = %d, elevator = %d)",
                      direction, elevator)
