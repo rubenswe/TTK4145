@@ -19,7 +19,7 @@ import floor_panel.user_interface
 import floor_panel.request_manager
 import floor_panel.elevator_monitor
 
-logging.basicConfig(format="%(levelname)8s | %(asctime)s : %(message)s"
+logging.basicConfig(format="%(process)d | %(levelname)8s | %(asctime)s : %(message)s"
                     " (%(module)s.%(funcName)s)",
                     level=logging.INFO)
 

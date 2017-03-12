@@ -18,7 +18,7 @@ import driver
 import elevator.user_interface
 import elevator.motor_controller
 
-logging.basicConfig(format="%(levelname)8s | %(asctime)s : %(message)s"
+logging.basicConfig(format="%(process)d | %(levelname)8s | %(asctime)s : %(message)s"
                     " (%(module)s.%(funcName)s)",
                     level=logging.INFO)
 

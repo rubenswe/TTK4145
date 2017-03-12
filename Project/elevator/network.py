@@ -196,54 +196,60 @@ class Network(process_pairs.PrimaryBackupSwitchable):
             # Waits for incoming packet
             logging.debug("Wait for incoming packet")
 
-            try:
-                data, address = self.__server.recvfrom(self.__buffer_size)
-            except OSError:
-                continue
+            # try:
+            data, address = self.__server.recvfrom(self.__buffer_size)
+            # except OSError:
+            #    continue
 
-            try:
-                packet = json.loads(data.decode())
-
-                packet_type = packet["type"]
-                packet_data = packet["data"]
-            except json.JSONDecodeError:
-                logging.error("Packet is in wrong format! "
-                              "(addr = %s:%d, data = \"%s\")",
-                              address[0], address[1], data.decode())
-                continue
-            logging.debug(
-                "Received packet (address = %s:%d, packet_type = \"%s\"",
-                address[0], address[1], packet_type)
-
-            # Forwards the packet to corresponding module
-            # Sends back the reply of the module
-            logging.debug("Find and call packet handler")
-            if packet_type in self.__handler_list:
-                # Starts a new transaction and calls the packet handler
-                tid = self.__transaction_manager.start()
-
-                resp_data = self.__handler_list[packet_type](
-                    tid, address, packet_data)
-
-                success = self.__transaction_manager.finish(tid)
-                if not success:
-                    resp_data = False
-
-                # Answers the client
-                logging.debug("Answer the client")
-                resp_json = json.dumps(resp_data)
-
-                try:
-                    self.__server.sendto(resp_json.encode(), address)
-                except OSError:
-                    logging.error("Cannot reply! (addr = %s:%d)",
-                                  address[0], address[1])
-            else:
-                logging.warning(
-                    "Unknown packet! (addr = %s:%d, packet_type = \"%s\")",
-                    address[0], address[1], packet_type)
+            threading.Thread(target=self.__handle_incoming_packet,
+                             daemon=True,
+                             args=(address, data,)).start()
 
         logging.debug("Finish listening to incoming packet")
 
     def __handle_incoming_packet(self, address, data):
-        pass
+
+        try:
+            packet = json.loads(data.decode())
+
+            packet_type = packet["type"]
+            packet_data = packet["data"]
+        except json.JSONDecodeError:
+            logging.error("Packet is in wrong format! "
+                          "(addr = %s:%d, data = \"%s\")",
+                          address[0], address[1], data.decode())
+            return
+
+        logging.debug(
+            "Received packet (address = %s:%d, packet_type = \"%s\"",
+            address[0], address[1], packet_type)
+
+        # Forwards the packet to corresponding module
+        # Sends back the reply of the module
+        logging.debug("Find and call packet handler")
+        if packet_type in self.__handler_list:
+            # Starts a new transaction and calls the packet handler
+            tid = self.__transaction_manager.start()
+
+            resp_data = self.__handler_list[packet_type](
+                tid, address, packet_data)
+
+            success = self.__transaction_manager.finish(tid)
+            if not success:
+                resp_data = False
+
+            # Answers the client
+            logging.debug("Answer the client")
+            resp_json = json.dumps(resp_data)
+
+            try:
+                client = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+                client.settimeout(self.__timeout)
+                client.sendto(resp_json.encode(), address)
+            except OSError:
+                logging.error("Cannot reply! (addr = %s:%d)",
+                              address[0], address[1])
+        else:
+            logging.warning(
+                "Unknown packet! (addr = %s:%d, packet_type = \"%s\")",
+                address[0], address[1], packet_type)

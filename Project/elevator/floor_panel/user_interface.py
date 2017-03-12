@@ -66,6 +66,8 @@ class UserInterface(module_base.ModuleBase):
         self.__period = 0.0
 
         # States
+        self.__started = False
+
         self.__light_up = False  # Whether the up button light is on
         self.__light_down = False  # Whether the down button light is on
 
@@ -96,6 +98,8 @@ class UserInterface(module_base.ModuleBase):
         """
 
         logging.debug("Start activating user interface module")
+
+        self.__started = True
 
         # Updates the button indicators
         tid = self.__transaction_manager.start()
@@ -146,7 +150,9 @@ class UserInterface(module_base.ModuleBase):
         """
 
         self._join_transaction(tid)
-        self.__update_button_light(tid)
+
+        if self.__started:
+            self.__update_button_light(tid)
 
         module_base.ModuleBase.commit(self, tid)
 
