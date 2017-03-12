@@ -31,7 +31,7 @@ class RequestManager(process_pairs.PrimaryBackupSwitchable):
         print("AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA")
         _network.add_packet_handler("elev_request_add", self.receive_request)
 
-        self.__floors = [FloorPendingRequest()] * 4
+        self.__floors = [FloorPendingRequest() for i in range(4)]
         # self.__floors[0].internal = True
 
     def start(self):

@@ -91,10 +91,6 @@ class UserInterface(process_pairs.PrimaryBackupSwitchable):
 
         logging.debug("Finish activating user interface module")
 
-    # Not needed?:
-    def set_elevator_state(self):
-        pass
-
     def export_state(self):
         """
         Returns the current state of the module in serializable format.
