@@ -77,6 +77,8 @@ class RequestManager(module_base.ModuleBase):
         # Registers incoming packet handlers
         _network.add_packet_handler("floor_request_served",
                                     self.__on_request_served_received)
+        _network.add_packet_handler("floor_get_all_requests",
+                                    self.__on_get_all_requests_received)
 
     def start(self):
         """
@@ -252,3 +254,10 @@ class RequestManager(module_base.ModuleBase):
         logging.debug("Finish handling request served packet from elevator")
 
         return True
+
+    def __on_get_all_requests_received(self, tid, address, data):
+
+        self._join_transaction(tid)
+
+        return (self.__has_request[core.Direction.Up],
+                self.__has_request[core.Direction.Down])
