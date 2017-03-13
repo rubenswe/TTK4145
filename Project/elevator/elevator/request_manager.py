@@ -174,6 +174,7 @@ class RequestManager(module_base.ModuleBase):
         if self.__curr_direction == core.Direction.Down:
             self.__request_floors[
                 self.__curr_position].call_down = False
+
         if self.__request_floors[self.__curr_position].cabin:
             self.__request_floors[self.__curr_position].cabin = False
             self.__user_interface.turn_button_light_off(
@@ -189,6 +190,10 @@ class RequestManager(module_base.ModuleBase):
             self, tid, position, direction):
 
         self._join_transaction(tid)
+        logging.debug(
+            "Start handling position and motor direction changed event "
+            "(position = %d, direction = %s)",
+            position, direction)
 
         self.__curr_position = position
         self.__curr_motor_direction = direction
@@ -196,6 +201,9 @@ class RequestManager(module_base.ModuleBase):
         if self.__curr_state == ElevatorState.Move and \
                 direction == core.Direction.Stop:
             # The elevator has reached the destination floor
+            logging.info("Elevator has reached the floor %d",
+                         self.__curr_position)
+
             self.__curr_state = ElevatorState.Stay
 
             self.__send_request_served(
@@ -204,6 +212,11 @@ class RequestManager(module_base.ModuleBase):
             # Waits for a second before closing the door
             threading.Timer(self.__stay_time,
                             self.__elevator_stay_timer).start()
+
+        logging.debug(
+            "Finish handling position and motor direction changed event "
+            "(position = %d, direction = %s)",
+            position, direction)
 
     def __elevator_stay_timer(self):
         tid = self.__transaction_manager.start()
@@ -259,6 +272,8 @@ class RequestManager(module_base.ModuleBase):
         if self.__curr_state != ElevatorState.Move:
             ignore_curr_floor = 0
 
+        logging.info("Find next destination: %s", self.__request_floors)
+
         if self.__curr_direction == core.Direction.Up \
                 or self.__curr_direction == core.Direction.Stop:
 
@@ -298,54 +313,3 @@ class RequestManager(module_base.ModuleBase):
                         break
 
         return next_destination
-
-    def __elevator_control_thread(self):
-
-        while True:
-            tid = self.__transaction_manager.start()
-            self._join_transaction(tid)
-
-            next_destination = self.__find_next_destination(tid)
-
-            aaa = -1
-            if next_destination is not None:
-                aaa = next_destination
-            print("curr_state: %s, next_destination: %d" %
-                  (self.__curr_state, aaa))
-
-            # Updates state
-            if self.__curr_state == ElevatorState.Move:
-                if self.__curr_motor_direction == core.Direction.Stop and \
-                    (self.__request_floors[self.__curr_position].call_up or
-                     self.__request_floors[self.__curr_position].call_down or
-                     self.__request_floors[self.__curr_position].cabin):
-
-                    self.__curr_state = ElevatorState.Stay
-                else:
-                    if next_destination is not None:
-                        self.__motor_controller.set_target_floor(
-                            tid, next_destination)
-
-            elif self.__curr_state == ElevatorState.Stay:
-                if self.__curr_direction == core.Direction.Up:
-                    self.__request_floors[self.__curr_position].call_up = False
-                if self.__curr_direction == core.Direction.Down:
-                    self.__request_floors[
-                        self.__curr_position].call_down = False
-                self.__request_floors[self.__curr_position].cabin = False
-
-                if next_destination is not None:
-                    self.__curr_state = ElevatorState.Move
-                else:
-                    self.__curr_state = ElevatorState.Stop
-                    self.__curr_direction = ElevatorState.Stop
-            else:
-                if next_destination is not None:
-                    if next_destination == self.__curr_position:
-                        self.__curr_state = ElevatorState.Stay
-                    else:
-                        self.__curr_state = ElevatorState.Move
-
-            self.__transaction_manager.finish(tid)
-
-            time.sleep(self.__period)
