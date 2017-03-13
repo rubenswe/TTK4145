@@ -149,11 +149,7 @@ class UserInterface(module_base.ModuleBase):
         """
 
         self._join_transaction(tid)
-        if self._get_can_commit(tid):
-            if self.__started:
-                for floor in range(self.__floor_number):
-                    self.__driver.set_button_lamp(
-                        driver.FloorButton.Command, floor, self.__floor[floor])
+        self.__update_button_light(tid)
 
         return module_base.ModuleBase.prepare_to_commit(self, tid)
 

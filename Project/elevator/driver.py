@@ -77,7 +77,7 @@ class Driver(module_base.ModuleBase):
         else:
             self.__address = None
             self.__lib = ctypes.cdll.LoadLibrary(
-                "../driver/libdriver.so")
+                "../../driver/libdriver.so")
 
     def start(self):
         """

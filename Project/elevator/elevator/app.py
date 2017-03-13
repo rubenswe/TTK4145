@@ -55,7 +55,7 @@ def main():
     _driver.init(config, transaction_manager)
     user_interface.init(config, transaction_manager, _driver, request_manager)
     request_manager.init(config, transaction_manager, _network,
-                         motor_controller)
+                         motor_controller, user_interface)
     motor_controller.init(config, transaction_manager, _driver,
                           request_manager)
 
