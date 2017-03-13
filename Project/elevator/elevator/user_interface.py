@@ -124,21 +124,20 @@ class UserInterface(module_base.ModuleBase):
         logging.debug("Finish turning the button light off (floor = %d)",
                       floor)
 
-    def commit(self, tid):
+    def prepare_to_commit(self, tid):
         """
-        Commits the transaction. Before committing, updates the button lights
-        to make sure that the button lights can only be changed when
-        the transaction is success.
+        Before committing, updates the button lights to make sure that
+        the button lights can only be changed when the transaction is success.
         """
 
         self._join_transaction(tid)
+        if self._get_can_commit(tid):
+            if self.__started:
+                for floor in range(self.__floor_number):
+                    self.__driver.set_button_lamp(
+                        driver.FloorButton.Command, floor, self.__floor[floor])
 
-        if self.__started:
-            for floor in range(self.__floor_number):
-                self.__driver.set_button_lamp(
-                    driver.FloorButton.Command, floor, self.__floor[floor])
-
-        module_base.ModuleBase.commit(self, tid)
+        return module_base.ModuleBase.prepare_to_commit(self, tid)
 
     def __button_monitor_thread(self):
         """
