@@ -163,13 +163,27 @@ class ElevatorController(module_base.ModuleBase):
             if self.__state == ElevatorState.Move:
                 if motor_direction == driver.MotorDirection.Stop:
                     logging.debug("The elevator has reached the desired floor "
-                                  "(floor = %d)", motor_position)
+                                  "(floor = %d, direction = %s)",
+                                  motor_position, self.__direction)
 
                     # Changes to stay state
-                    logging.info("Elevator stays at floor %d", motor_position)
+                    logging.info("Elevator stays at floor %d (direction = %s)",
+                                 motor_position, self.__direction)
 
                     self.__prev_time = time.time()
                     self.__state = ElevatorState.Stay
+
+                    # Changes the direction if neccessary
+                    if self.__direction == core.Direction.Up:
+                        if target_floor is None \
+                                and not requests[motor_position].call_up \
+                                and requests[motor_position].call_down:
+                            self.__direction = core.Direction.Down
+                    if self.__direction == core.Direction.Down:
+                        if target_floor is None \
+                                and not requests[motor_position].call_down \
+                                and requests[motor_position].call_up:
+                            self.__direction = core.Direction.Up
 
                     # Sends request has served to request manager
                     self.__request_manager.set_request_served(
@@ -204,15 +218,17 @@ class ElevatorController(module_base.ModuleBase):
                     pass
                 elif timeout and target_floor is None:
                     # Changes to stop state
-                    logging.info("Elevator stops at floor %d", motor_position)
+                    logging.info("Elevator stops at floor %d (direction = %s)",
+                                 motor_position, self.__direction)
 
                     self.__state = ElevatorState.Stop
                     self.__direction = core.Direction.Stop
             elif self.__state == ElevatorState.Stop:
                 if target_floor is not None:
                     if target_floor == motor_position:  # Just opens the door
-                        logging.info("Elevator stays at floor %d",
-                                     target_floor)
+                        logging.info(
+                            "Elevator stays at floor %d (direction = %s)",
+                            target_floor, self.__direction)
 
                         # Switches to stay state
                         self.__prev_time = time.time()
@@ -252,15 +268,26 @@ class ElevatorController(module_base.ModuleBase):
         self._join_transaction(tid)
 
         next_destination = None
-        ignore_curr_floor = 1
+
         if self.__state != ElevatorState.Move:
-            ignore_curr_floor = 0
+            if self.__direction == core.Direction.Up \
+                    and requests[curr_floor].call_up:
+                return curr_floor
+            if self.__direction == core.Direction.Down \
+                    and requests[curr_floor].call_down:
+                return curr_floor
+            if requests[curr_floor].cabin:
+                return curr_floor
+            if self.__direction == core.Direction.Stop \
+                    and (requests[curr_floor].call_up \
+                         or requests[curr_floor].call_down):
+                return curr_floor
 
         if self.__direction == core.Direction.Up \
                 or self.__direction == core.Direction.Stop:
 
             # Looks up for the nearest request
-            for floor in range(curr_floor + ignore_curr_floor,
+            for floor in range(curr_floor + 1,
                                self.__floor_number):
                 if requests[floor].call_up \
                         or requests[floor].cabin:
@@ -270,7 +297,7 @@ class ElevatorController(module_base.ModuleBase):
             if next_destination is None:
                 # Looks up for the farthest "down" request
                 for floor in reversed(range(
-                        curr_floor + ignore_curr_floor,
+                        curr_floor + 1,
                         self.__floor_number)):
                     if requests[floor].call_down:
                         next_destination = floor
@@ -280,7 +307,7 @@ class ElevatorController(module_base.ModuleBase):
                 or self.__direction == core.Direction.Stop:
             # Looks down for the nearest request
             for floor in reversed(range(
-                    0, curr_floor + ignore_curr_floor)):
+                    0, curr_floor + 1)):
                 if requests[floor].call_down \
                         or requests[floor].cabin:
                     next_destination = floor
@@ -289,7 +316,7 @@ class ElevatorController(module_base.ModuleBase):
             if next_destination is None:
                 # Looks down for the farthest "up" request
                 for floor in range(
-                        0, curr_floor + ignore_curr_floor):
+                        0, curr_floor + 1):
                     if requests[floor].call_up:
                         next_destination = floor
                         break
