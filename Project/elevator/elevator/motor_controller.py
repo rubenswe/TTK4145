@@ -51,7 +51,8 @@ class MotorController(module_base.ModuleBase):
         self.__stuck_timeout = config.get_float(
             "elevator", "motor_stuck_timeout")
 
-    def start(self):
+    def start(self, tid):
+        self._join_transaction(tid)
         threading.Thread(target=self.__control_motor_thread,
                          daemon=True).start()
 

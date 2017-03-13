@@ -90,8 +90,8 @@ class RequestManager(module_base.ModuleBase):
         _network.add_packet_handler("elev_request_add",
                                     self.__on_elev_request_add_received)
 
-    def start(self):
-        pass
+    def start(self, tid):
+        self._join_transaction(tid)
 
     def export_state(self, tid):
         self._join_transaction(tid)

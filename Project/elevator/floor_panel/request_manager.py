@@ -80,11 +80,12 @@ class RequestManager(module_base.ModuleBase):
         _network.add_packet_handler("floor_get_all_requests",
                                     self.__on_get_all_requests_received)
 
-    def start(self):
+    def start(self, tid):
         """
         Starts working from the current state.
         """
 
+        self._join_transaction(tid)
         logging.debug("Start activating request manager module")
 
         logging.debug("Finish activating request manager module")

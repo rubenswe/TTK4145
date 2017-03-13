@@ -92,19 +92,15 @@ class UserInterface(module_base.ModuleBase):
         self.__floor = config.get_int("floor", "floor")
         self.__period = config.get_float("floor", "ui_monitor_period", 0.1)
 
-    def start(self):
+    def start(self, tid):
         """
         Starts working from the current state.
         """
 
+        self._join_transaction(tid)
         logging.debug("Start activating user interface module")
 
         self.__started = True
-
-        # Updates the button indicators
-        tid = self.__transaction_manager.start()
-        self._join_transaction(tid)
-        _ = self.__transaction_manager.finish(tid)  # Updates when commit
 
         # Starts button monitoring thread
         logging.debug("Start button monitoring thread")

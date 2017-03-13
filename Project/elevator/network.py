@@ -64,7 +64,7 @@ class Network(process_pairs.PrimaryBackupSwitchable):
         self.__timeout = config.get_float("network", "timeout", 0.5)
         self.__buffer_size = config.get_int("network", "buffer_size", 1024)
 
-    def start(self):
+    def start(self, tid):
         """
         Opens a UDP server and listens to incoming packets.
         """

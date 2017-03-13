@@ -102,11 +102,12 @@ class ElevatorMonitor(module_base.ModuleBase):
         self.__elevator_list = [ElevatorState()
                                 for i in range(self.__elevator_number)]
 
-    def start(self):
+    def start(self, tid):
         """
         Starts working from the current state.
         """
 
+        self._join_transaction(tid)
         logging.debug("Start activating elevator monitor module")
 
         # Starts new threads to periodically retrieve the current state

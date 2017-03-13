@@ -93,7 +93,9 @@ class ElevatorController(module_base.ModuleBase):
 
         logging.debug("Finish initializing elevator controller")
 
-    def start(self):
+    def start(self, tid):
+
+        self._join_transaction(tid)
         logging.debug("Start activating elevator controller")
 
         # Starts elevator controlling thread

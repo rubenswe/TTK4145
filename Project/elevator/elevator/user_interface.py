@@ -63,18 +63,15 @@ class UserInterface(module_base.ModuleBase):
 
         self.__floor = [0] * self.__floor_number
 
-    def start(self):
+    def start(self, tid):
         """
         Starts working from the current state
         """
+
+        self._join_transaction(tid)
         logging.debug("Start activating user interface module")
 
         self.__started = True
-
-        # Updates the button indicators
-        tid = self.__transaction_manager.start()
-        self._join_transaction(tid)
-        _ = self.__transaction_manager.finish(tid)  # Updates when commit
 
         # print("Start elevator in current state: {}".format())
         # Starts button monitoring thread

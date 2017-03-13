@@ -79,17 +79,21 @@ class Driver(module_base.ModuleBase):
             self.__lib = ctypes.cdll.LoadLibrary(
                 "../../driver/libdriver.so")
 
-    def start(self):
+    def start(self, tid):
         """
         Starts working from the current state.
         """
 
+        self._join_transaction(tid)
         logging.debug("Start activating driver module")
 
         if self.__type == DriverTarget.Simulation:
             self.__lib.elev_init(self.__address[0], self.__address[1])
         else:
             self.__lib.elev_init()
+
+        # Sets the stop button light to 0 to detect the motor box power off
+        self.__lib.elev_set_stop_lamp(0)
 
         logging.debug("Finish activating driver module")
 
@@ -127,15 +131,27 @@ class Driver(module_base.ModuleBase):
         self.__lib.elev_set_stop_lamp(value)
 
     def get_button_signal(self, button, floor):
+        if self.__lib.elev_get_stop_signal() != 0:
+            return 0
+
         return self.__lib.elev_get_button_signal(button, floor)
 
     def get_floor_sensor_signal(self):
+        if self.__lib.elev_get_stop_signal() != 0:
+            return -1
+
         return self.__lib.elev_get_floor_sensor_signal()
 
     def get_stop_signal(self):
+        if self.__lib.elev_get_stop_signal() != 0:
+            return 0
+
         return self.__lib.elev_get_stop_signal()
 
     def get_obstruction_signal(self):
+        if self.__lib.elev_get_stop_signal() != 0:
+            return 0
+
         return self.__lib.elev_get_obstruction_signal()
 
 

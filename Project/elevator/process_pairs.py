@@ -27,7 +27,7 @@ class PrimaryBackupSwitchable(object):
     each request.
     """
 
-    def start(self):
+    def start(self, tid):
         """
         Starts working from the current state. Every initialization should be
         done before calling this function, even in backup system.
@@ -170,8 +170,10 @@ class ProcessPair(object):
 
                 # Starts all the modules
                 logging.debug("Activate all modules")
+                tid = self.__transaction_manager.start()
                 for module in self.__module_list.values():
-                    module.start()
+                    module.start(tid)
+                _ = self.__transaction_manager.finish(tid)
 
                 # Creates new thread to open a connection with the backup
                 # to periodically send state as well as monitor the backup.
@@ -203,8 +205,10 @@ class ProcessPair(object):
 
             if is_primary:
                 logging.debug("Activate all modules")
+                tid = self.__transaction_manager.start()
                 for module in self.__module_list.values():
-                    module.start()
+                    module.start(tid)
+                _ = self.__transaction_manager.finish(tid)
 
         if is_primary:
             logging.debug("Finish switching to primary mode")

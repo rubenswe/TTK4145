@@ -57,7 +57,8 @@ class FloorReadonly(module_base.ModuleBase):
             for index in range(self.__floor_number)
         ]
 
-    def start(self):
+    def start(self, tid):
+        self._join_transaction(tid)
         threading.Thread(target=self.__show_floor_button_light_thread,
                          daemon=True).start()
 
