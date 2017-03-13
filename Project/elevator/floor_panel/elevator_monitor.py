@@ -171,38 +171,43 @@ class ElevatorMonitor(module_base.ModuleBase):
 
                 # Walks
                 while elev_position != self.__floor \
-                        or elev_direction != direction:
-                    if elev_direction == direction:
-                        if elev_direction == core.Direction.Up \
-                                and elev_position <= self.__floor:
+                        or elev_direction != core.Direction.Stop:
+                    print("Elevator %d, direction %s, distance %d" %
+                          (index, state.direction, distance))
+                    if elev_direction == core.Direction.Up:
+                        if direction == core.Direction.Up and \
+                                elev_position < self.__floor:
                             distance += self.__floor - elev_position
                             break
-                        if elev_direction == core.Direction.Down \
-                                and elev_position >= self.__floor:
+
+                        distance += self.__floor_number - elev_position - 1
+                        elev_position = self.__floor_number - 1
+                        elev_direction = core.Direction.Stop
+                    elif elev_direction == core.Direction.Down:
+                        if direction == core.Direction.Down and \
+                                elev_position > self.__floor:
                             distance += elev_position - self.__floor
                             break
 
-                    if elev_direction == core.Direction.Stop:
-                        if elev_position <= self.__floor:
-                            distance += self.__floor - elev_position
-                            break
-                        else:
-                            distance += elev_position - self.__floor
-                            break
-                    elif elev_direction == core.Direction.Up:
-                        distance += (self.__floor_number - 1) - elev_position
-                        elev_direction = core.Direction.Down
-                        elev_position = self.__floor_number - 1
-                    else:
                         distance += elev_position
-                        elev_direction = core.Direction.Up
                         elev_position = 0
+                        elev_direction = core.Direction.Stop
+                    else:
+                        if elev_position >= self.__floor:
+                            distance += elev_position - self.__floor
+                        else:
+                            distance += self.__floor - elev_position
+                        break
 
                 # If it is the shortest distance, saves it
                 logging.debug("Elevator %d: distance %d", index, distance)
+                print("Elevator %d, direction %s, distance %d" %
+                      (index, state.direction, distance))
                 if distance < min_distance:
                     min_distance = distance
                     best_elevator = index
+            else:
+                print("Elevator %d is dead" % (index))
 
         if best_elevator == -1:
             logging.error("Cannot find any available elevator!")
