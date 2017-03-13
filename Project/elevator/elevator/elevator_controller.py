@@ -136,12 +136,14 @@ class ElevatorController(module_base.ModuleBase):
         # Gets current motor state
         motor_position, _ = \
             self.__motor_controller.get_current_position_direction(tid)
+        motor_stuck = self.__motor_controller.is_stuck(tid)
 
         # Sends back the state
         return {
             "position": motor_position,
             "direction": self.__direction,
-            "serving_requests": serving_requests
+            "serving_requests": serving_requests,
+            "motor_stuck": motor_stuck,
         }
 
     def __control_thread(self):
@@ -290,27 +292,16 @@ class ElevatorController(module_base.ModuleBase):
                 return curr_floor
             if requests[curr_floor].cabin:
                 return curr_floor
-<<<<<<< HEAD
             if self.__state == ElevatorState.Stop \
                     and (requests[curr_floor].call_up or
                          requests[curr_floor].call_down):
-=======
-            if self.__direction == core.Direction.Stop \
-                    and (requests[curr_floor].call_up \
-                         or requests[curr_floor].call_down):
->>>>>>> 4acb6ad3c01ab6f3ceeb86a274173d1afa21c8c4
                 return curr_floor
 
         if self.__direction == core.Direction.Up \
                 or self.__direction == core.Direction.Stop:
 
             # Looks up for the nearest request
-<<<<<<< HEAD
             for floor in range(curr_floor + 1, self.__floor_number):
-=======
-            for floor in range(curr_floor + 1,
-                               self.__floor_number):
->>>>>>> 4acb6ad3c01ab6f3ceeb86a274173d1afa21c8c4
                 if requests[floor].call_up \
                         or requests[floor].cabin:
                     next_destination = floor
@@ -319,12 +310,7 @@ class ElevatorController(module_base.ModuleBase):
             if next_destination is None:
                 # Looks up for the farthest "down" request
                 for floor in reversed(range(
-<<<<<<< HEAD
                         curr_floor + 1, self.__floor_number)):
-=======
-                        curr_floor + 1,
-                        self.__floor_number)):
->>>>>>> 4acb6ad3c01ab6f3ceeb86a274173d1afa21c8c4
                     if requests[floor].call_down:
                         next_destination = floor
                         break
@@ -332,12 +318,7 @@ class ElevatorController(module_base.ModuleBase):
         if self.__direction == core.Direction.Down \
                 or self.__direction == core.Direction.Stop:
             # Looks down for the nearest request
-<<<<<<< HEAD
             for floor in reversed(range(0, curr_floor)):
-=======
-            for floor in reversed(range(
-                    0, curr_floor + 1)):
->>>>>>> 4acb6ad3c01ab6f3ceeb86a274173d1afa21c8c4
                 if requests[floor].call_down \
                         or requests[floor].cabin:
                     next_destination = floor
@@ -345,12 +326,7 @@ class ElevatorController(module_base.ModuleBase):
 
             if next_destination is None:
                 # Looks down for the farthest "up" request
-<<<<<<< HEAD
                 for floor in range(0, curr_floor):
-=======
-                for floor in range(
-                        0, curr_floor + 1):
->>>>>>> 4acb6ad3c01ab6f3ceeb86a274173d1afa21c8c4
                     if requests[floor].call_up:
                         next_destination = floor
                         break

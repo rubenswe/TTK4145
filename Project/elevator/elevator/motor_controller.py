@@ -28,11 +28,14 @@ class MotorController(module_base.ModuleBase):
 
         # Configurations
         self.__period = None
+        self.__stuck_timeout = None
 
         # States
         self.__target_floor = 0
         self.__prev_floor = -1
         self.__direction = core.Direction.Stop
+        self.__stuck_counter = 0
+        self.__is_stuck = False
 
     def init(self, config, transaction_manager, _driver):
         assert isinstance(config, core.Configuration)
@@ -45,6 +48,8 @@ class MotorController(module_base.ModuleBase):
         self.__driver = _driver
 
         self.__period = config.get_float("elevator", "motor_controller_period")
+        self.__stuck_timeout = config.get_float(
+            "elevator", "motor_stuck_timeout")
 
     def start(self):
         threading.Thread(target=self.__control_motor_thread,
@@ -56,6 +61,8 @@ class MotorController(module_base.ModuleBase):
             "target_floor": self.__target_floor,
             "prev_floor": self.__prev_floor,
             "direction": self.__direction,
+            "stuck_counter": self.__stuck_counter,
+            "is_stuck": self.__is_stuck,
         }
 
         return state
@@ -65,6 +72,8 @@ class MotorController(module_base.ModuleBase):
         self.__target_floor = state["target_floor"]
         self.__prev_floor = state["prev_floor"]
         self.__direction = state["direction"]
+        self.__stuck_counter = state["stuck_counter"]
+        self.__is_stuck = state["is_stuck"]
 
     def get_current_position_direction(self, tid):
         self._join_transaction(tid)
@@ -73,6 +82,10 @@ class MotorController(module_base.ModuleBase):
     def set_target_floor(self, tid, target_floor):
         self._join_transaction(tid)
         self.__target_floor = target_floor
+
+    def is_stuck(self, tid):
+        self._join_transaction(tid)
+        return self.__is_stuck
 
     def __control_motor_thread(self):
 
@@ -110,6 +123,18 @@ class MotorController(module_base.ModuleBase):
                     self.__driver.set_motor_direction(
                         driver.MotorDirection.Stop)
                     self.__direction = core.Direction.Stop
+
+            # Determines whether the motor is still running or not
+            if curr_position == -1:
+                if self.__period * self.__stuck_counter > self.__stuck_timeout:
+                    # Timeout => The motor cannot move
+                    logging.error("The motor cannot move!")
+                    self.__is_stuck = True
+
+                self.__stuck_counter += 1
+            else:
+                self.__stuck_counter = 0
+                self.__is_stuck = False
 
             if curr_position != -1:
                 self.__prev_floor = curr_position

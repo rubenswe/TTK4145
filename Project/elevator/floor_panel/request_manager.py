@@ -193,8 +193,12 @@ class RequestManager(module_base.ModuleBase):
             "Start handling elevator state changed event (elevator = %d)",
             elevator)
 
-        if not state.is_connected:
-            logging.debug("The elevator %d has been disconnected!", elevator)
+        if not state.is_connected or state.motor_stuck:
+            if not state.is_connected:
+                logging.debug("The elevator %d has been disconnected!",
+                              elevator)
+            else:
+                logging.debug("The elevator %d has been stucked!", elevator)
 
             # Finds all the requests delegated to this elevator and sends them
             # to another one

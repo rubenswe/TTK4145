@@ -32,6 +32,7 @@ class ElevatorState(object):
         self.position = 0
         self.direction = core.Direction.Stop
         self.is_connected = False
+        self.motor_stuck = False
         self.serving_requests = set()
 
 
@@ -162,7 +163,7 @@ class ElevatorMonitor(module_base.ModuleBase):
         for index in range(self.__elevator_number):
             state = self.__elevator_list[index]
 
-            if state.is_connected:
+            if state.is_connected and not state.motor_stuck:
                 elev_position = state.position
                 elev_direction = state.direction
                 distance = 0
@@ -248,6 +249,7 @@ class ElevatorMonitor(module_base.ModuleBase):
                 state.position = new_state["position"]
                 state.direction = new_state["direction"]
                 state.serving_requests = new_state["serving_requests"]
+                state.motor_stuck = new_state["motor_stuck"]
             else:
                 logging.error(
                     "Cannot get the state of elevator %d (attempt: %d)",
