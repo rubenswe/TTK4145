@@ -123,7 +123,9 @@ class ProcessPair(object):
         self.__module_list = module_list
 
         # Reads the configuration
-        self.__address = self.__config.get_value("process_pairs", "address")
+        self.__address = (
+            self.__config.get_value("process_pairs", "ip_address"),
+            self.__config.get_int("process_pairs", "port"))
         self.__period = self.__config.get_float("process_pairs", "period")
 
         # Reads the operation mode from the command line argument
