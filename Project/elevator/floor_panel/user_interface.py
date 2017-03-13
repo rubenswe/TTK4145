@@ -185,8 +185,8 @@ class UserInterface(module_base.ModuleBase):
         """
 
         self._join_transaction(tid)
-        logging.debug(
-            "Start turning the button light off (direction = %d)", direction)
+        logging.info(
+            "Start turning the button light off (direction = %s)", direction)
 
         if direction == core.Direction.Up:
             button = driver.FloorButton.CallUp
@@ -197,10 +197,8 @@ class UserInterface(module_base.ModuleBase):
 
         # Not turns of the light yet, wait for commit
 
-        self.__driver.set_button_lamp(button, self.__floor, 0)
-
         logging.debug(
-            "Finish turning the button light off (direction = %d)", direction)
+            "Finish turning the button light off (direction = %s)", direction)
 
     def __button_monitor_thread(self):
         """
@@ -226,6 +224,9 @@ class UserInterface(module_base.ModuleBase):
                     logging.debug("Floor %d, button %d is pushed",
                                   self.__floor, button)
 
+                    tid = self.__transaction_manager.start()
+                    self._join_transaction(tid)
+
                     if button == driver.FloorButton.CallUp:
                         direction = core.Direction.Up
                         self.__light_up = True
@@ -235,9 +236,8 @@ class UserInterface(module_base.ModuleBase):
 
                     # Sends request to request manager
                     logging.debug("Send request to the request manager")
-
-                    tid = self.__transaction_manager.start()
                     self.__request_manager.add_request(tid, direction)
+
                     self.__transaction_manager.finish(tid)
 
                 is_pushed[button] = value
