@@ -30,6 +30,9 @@ class UserInterface(module_base.ModuleBase):
         self.__started = False
 
         self.__floor = None
+        self.__door_opened = False
+        self.__curr_floor = 0
+
         self.__floor_number = None
         self.__period = 0.0
 
@@ -37,7 +40,6 @@ class UserInterface(module_base.ModuleBase):
         self.__driver = None
 
         self.__request_manager = None
-        # self.__lock_state = threading.Lock()
 
     def init(self, config, transaction_manager, _driver, request_manager):
         """
@@ -92,6 +94,8 @@ class UserInterface(module_base.ModuleBase):
 
         state = {
             "floor": self.__floor,
+            "door_opened": self.__door_opened,
+            "curr_floor": self.__curr_floor,
         }
 
         logging.debug("Finish exporting current state of user interface")
@@ -106,6 +110,8 @@ class UserInterface(module_base.ModuleBase):
         logging.debug("Start importing current state of user interface")
 
         self.__floor = state["floor"]
+        self.__door_opened = state["door_opened"]
+        self.__curr_floor = state["curr_floor"]
 
         logging.debug("Finish importing current state of user interface")
 
@@ -119,10 +125,26 @@ class UserInterface(module_base.ModuleBase):
 
         self.__floor[floor] = 0
 
-        # Not turns of the light yet, wait for commit
+        # Not turns off the light yet, wait for commit
 
         logging.debug("Finish turning the button light off (floor = %d)",
                       floor)
+
+    def set_door_open_light(self, tid, is_opened):
+        """
+        Turns on/off the door indicator.
+        """
+
+        self._join_transaction(tid)
+        self.__door_opened = is_opened
+
+    def set_floor_indicator(self, tid, curr_floor):
+        """
+        Turns on the current floor.
+        """
+
+        self._join_transaction(tid)
+        self.__curr_floor = curr_floor
 
     def prepare_to_commit(self, tid):
         """
@@ -136,6 +158,13 @@ class UserInterface(module_base.ModuleBase):
                 for floor in range(self.__floor_number):
                     self.__driver.set_button_lamp(
                         driver.FloorButton.Command, floor, self.__floor[floor])
+
+        if self.__door_opened:
+            self.__driver.set_door_open_lamp(1)
+        else:
+            self.__driver.set_door_open_lamp(0)
+
+        self.__driver.set_floor_indicator(self.__curr_floor)
 
         return module_base.ModuleBase.prepare_to_commit(self, tid)
 

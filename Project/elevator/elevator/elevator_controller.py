@@ -47,6 +47,7 @@ class ElevatorController(module_base.ModuleBase):
         self.__transaction_manager = None
         self.__request_manager = None
         self.__motor_controller = None
+        self.__user_interface = None
 
         # Configurations
         self.__floor_number = None
@@ -59,7 +60,7 @@ class ElevatorController(module_base.ModuleBase):
         self.__prev_time = None  # For stay timer
 
     def init(self, config, transaction_manager, _network,
-             request_manager, motor_controller):
+             request_manager, motor_controller, user_interface):
 
         assert isinstance(config, core.Configuration)
         assert isinstance(transaction_manager, transaction.TransactionManager)
@@ -68,6 +69,8 @@ class ElevatorController(module_base.ModuleBase):
                           elevator.request_manager.RequestManager)
         assert isinstance(motor_controller,
                           elevator.motor_controller.MotorController)
+        assert isinstance(user_interface,
+                          elevator.user_interface.UserInterface)
 
         logging.debug("Start initializing elevator controller")
         module_base.ModuleBase.init(self, transaction_manager)
@@ -76,6 +79,7 @@ class ElevatorController(module_base.ModuleBase):
         self.__transaction_manager = transaction_manager
         self.__request_manager = request_manager
         self.__motor_controller = motor_controller
+        self.__user_interface = user_interface
 
         # Configurations
         self.__floor_number = config.get_int("core", "floor_number")
@@ -161,6 +165,8 @@ class ElevatorController(module_base.ModuleBase):
 
             # Determines the next state of the elevator
             if self.__state == ElevatorState.Move:
+                self.__user_interface.set_floor_indicator(tid, motor_position)
+
                 if motor_direction == driver.MotorDirection.Stop:
                     logging.debug("The elevator has reached the desired floor "
                                   "(floor = %d, direction = %s)",
@@ -195,6 +201,7 @@ class ElevatorController(module_base.ModuleBase):
 
             elif self.__state == ElevatorState.Stay:
                 timeout = (time.time() - self.__prev_time >= self.__stay_time)
+                self.__user_interface.set_door_open_light(tid, True)
 
                 if target_floor is not None:
                     if target_floor == motor_position:
@@ -211,7 +218,10 @@ class ElevatorController(module_base.ModuleBase):
                             self.__direction = core.Direction.Up
                         else:
                             self.__direction = core.Direction.Down
+
                         self.__state = ElevatorState.Move
+
+                        self.__user_interface.set_door_open_light(tid, False)
                         self.__motor_controller.set_target_floor(
                             tid, target_floor)
 
@@ -223,6 +233,8 @@ class ElevatorController(module_base.ModuleBase):
 
                     self.__state = ElevatorState.Stop
                     self.__direction = core.Direction.Stop
+
+                    self.__user_interface.set_door_open_light(tid, False)
             elif self.__state == ElevatorState.Stop:
                 if target_floor is not None:
                     if target_floor == motor_position:  # Just opens the door
@@ -278,17 +290,27 @@ class ElevatorController(module_base.ModuleBase):
                 return curr_floor
             if requests[curr_floor].cabin:
                 return curr_floor
+<<<<<<< HEAD
+            if self.__state == ElevatorState.Stop \
+                    and (requests[curr_floor].call_up or
+                         requests[curr_floor].call_down):
+=======
             if self.__direction == core.Direction.Stop \
                     and (requests[curr_floor].call_up \
                          or requests[curr_floor].call_down):
+>>>>>>> 4acb6ad3c01ab6f3ceeb86a274173d1afa21c8c4
                 return curr_floor
 
         if self.__direction == core.Direction.Up \
                 or self.__direction == core.Direction.Stop:
 
             # Looks up for the nearest request
+<<<<<<< HEAD
+            for floor in range(curr_floor + 1, self.__floor_number):
+=======
             for floor in range(curr_floor + 1,
                                self.__floor_number):
+>>>>>>> 4acb6ad3c01ab6f3ceeb86a274173d1afa21c8c4
                 if requests[floor].call_up \
                         or requests[floor].cabin:
                     next_destination = floor
@@ -297,8 +319,12 @@ class ElevatorController(module_base.ModuleBase):
             if next_destination is None:
                 # Looks up for the farthest "down" request
                 for floor in reversed(range(
+<<<<<<< HEAD
+                        curr_floor + 1, self.__floor_number)):
+=======
                         curr_floor + 1,
                         self.__floor_number)):
+>>>>>>> 4acb6ad3c01ab6f3ceeb86a274173d1afa21c8c4
                     if requests[floor].call_down:
                         next_destination = floor
                         break
@@ -306,8 +332,12 @@ class ElevatorController(module_base.ModuleBase):
         if self.__direction == core.Direction.Down \
                 or self.__direction == core.Direction.Stop:
             # Looks down for the nearest request
+<<<<<<< HEAD
+            for floor in reversed(range(0, curr_floor)):
+=======
             for floor in reversed(range(
                     0, curr_floor + 1)):
+>>>>>>> 4acb6ad3c01ab6f3ceeb86a274173d1afa21c8c4
                 if requests[floor].call_down \
                         or requests[floor].cabin:
                     next_destination = floor
@@ -315,8 +345,12 @@ class ElevatorController(module_base.ModuleBase):
 
             if next_destination is None:
                 # Looks down for the farthest "up" request
+<<<<<<< HEAD
+                for floor in range(0, curr_floor):
+=======
                 for floor in range(
                         0, curr_floor + 1):
+>>>>>>> 4acb6ad3c01ab6f3ceeb86a274173d1afa21c8c4
                     if requests[floor].call_up:
                         next_destination = floor
                         break

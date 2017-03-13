@@ -59,7 +59,7 @@ def main():
     request_manager.init(config, transaction_manager, _network,
                          motor_controller, user_interface)
     elevator_controller.init(config, transaction_manager, _network,
-                             request_manager, motor_controller)
+                             request_manager, motor_controller, user_interface)
     motor_controller.init(config, transaction_manager, _driver)
 
     module_list = {
