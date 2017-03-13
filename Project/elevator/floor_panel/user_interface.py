@@ -226,9 +226,12 @@ class UserInterface(module_base.ModuleBase):
                     logging.debug("Floor %d, button %d is pushed",
                                   self.__floor, button)
 
-                    direction = core.Direction.Up
+                    if button == driver.FloorButton.CallUp:
+                        direction = core.Direction.Up
+                        self.__light_up = True
                     if button == driver.FloorButton.CallDown:
                         direction = core.Direction.Down
+                        self.__light_down = True
 
                     # Sends request to request manager
                     logging.debug("Send request to the request manager")

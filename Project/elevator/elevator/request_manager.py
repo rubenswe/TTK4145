@@ -272,8 +272,6 @@ class RequestManager(module_base.ModuleBase):
         if self.__curr_state != ElevatorState.Move:
             ignore_curr_floor = 0
 
-        logging.info("Find next destination: %s", self.__request_floors)
-
         if self.__curr_direction == core.Direction.Up \
                 or self.__curr_direction == core.Direction.Stop:
 
