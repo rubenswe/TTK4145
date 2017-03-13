@@ -27,7 +27,10 @@ class UserInterface(module_base.ModuleBase):
     def __init__(self):
         module_base.ModuleBase.__init__(self)
 
-        self.__floor = [0, 0, 0, 0]
+        self.__started = False
+
+        self.__floor = None
+        self.__floor_number = None
         self.__period = 0.0
 
         self.__transaction_manager = None
@@ -53,13 +56,23 @@ class UserInterface(module_base.ModuleBase):
         self.__driver = _driver
         self.__request_manager = request_manager
 
+        self.__floor_number = config.get_int("core", "floor_number")
         self.__period = config.get_float("elevator", "ui_monitor_period")
+
+        self.__floor = [0] * self.__floor_number
 
     def start(self):
         """
         Starts working from the current state
         """
         logging.debug("Start activating user interface module")
+
+        self.__started = True
+
+        # Updates the button indicators
+        tid = self.__transaction_manager.start()
+        self._join_transaction(tid)
+        _ = self.__transaction_manager.finish(tid)  # Updates when commit
 
         # print("Start elevator in current state: {}".format())
         # Starts button monitoring thread
@@ -96,6 +109,37 @@ class UserInterface(module_base.ModuleBase):
 
         logging.debug("Finish importing current state of user interface")
 
+    def turn_button_light_off(self, tid, floor):
+        """
+        Turns off the specified floor button light.
+        """
+
+        self._join_transaction(tid)
+        logging.debug("Start turning the button light off (floor = %d)", floor)
+
+        self.__floor[floor] = 0
+
+        # Not turns of the light yet, wait for commit
+
+        logging.debug("Finish turning the button light off (floor = %d)",
+                      floor)
+
+    def commit(self, tid):
+        """
+        Commits the transaction. Before committing, updates the button lights
+        to make sure that the button lights can only be changed when
+        the transaction is success.
+        """
+
+        self._join_transaction(tid)
+
+        if self.__started:
+            for floor in range(self.__floor_number):
+                self.__driver.set_button_lamp(
+                    driver.FloorButton.Command, floor, self.__floor[floor])
+
+        module_base.ModuleBase.commit(self, tid)
+
     def __button_monitor_thread(self):
         """
         Periodically checks whether a button is pushed.
@@ -114,9 +158,7 @@ class UserInterface(module_base.ModuleBase):
                 value = self.__driver.get_button_signal(2, floor)
                 if is_pushed[floor] == 0 and value == 1:
                     # This button is pushed
-                    logging.info(
-                        "ELEVATOR PANEL: Button to floor %d is pushed",
-                        floor + 1)
+                    logging.info("Button to floor %d is pushed", floor)
 
                     # Creates a new transaction and send the request
                     # to the request manager
@@ -125,8 +167,7 @@ class UserInterface(module_base.ModuleBase):
 
                     self.__floor[floor] = 1
                     # Send a request to the RequestManager
-                    logging.debug(
-                        "ELEVATOR PANEL: Send request to the request manager")
+                    logging.debug("Send request to the request manager")
                     self.__request_manager.add_cabin_request(tid, floor)
 
                     self.__transaction_manager.finish(tid)

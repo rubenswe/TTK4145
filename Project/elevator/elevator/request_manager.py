@@ -43,6 +43,7 @@ class RequestManager(module_base.ModuleBase):
         self.__transaction_manager = None
         self.__network = None
         self.__motor_controller = None
+        self.__user_interface = None
 
         self.__elevator = None
         self.__floor_number = None
@@ -59,18 +60,22 @@ class RequestManager(module_base.ModuleBase):
         self.__curr_direction = core.Direction.Stop
         self.__curr_state = ElevatorState.Stop
 
-    def init(self, config, transaction_manager, _network, motor_controller):
+    def init(self, config, transaction_manager, _network,
+             motor_controller, user_interface):
         assert isinstance(config, core.Configuration)
         assert isinstance(transaction_manager, transaction.TransactionManager)
         assert isinstance(_network, network.Network)
         assert isinstance(motor_controller,
                           elevator.motor_controller.MotorController)
+        assert isinstance(user_interface,
+                          elevator.user_interface.UserInterface)
 
         module_base.ModuleBase.init(self, transaction_manager)
 
         self.__transaction_manager = transaction_manager
         self.__network = _network
         self.__motor_controller = motor_controller
+        self.__user_interface = user_interface
 
         self.__elevator = config.get_int("elevator", "elevator")
         self.__floor_number = config.get_int("core", "floor_number")
@@ -163,21 +168,22 @@ class RequestManager(module_base.ModuleBase):
     def __send_request_served(self, tid, floor, direction):
         self._join_transaction(tid)
 
-        # Removes the request belongs to this floor
+        # Removes the request belongs to this floor and turns off the light
         if self.__curr_direction == core.Direction.Up:
             self.__request_floors[self.__curr_position].call_up = False
         if self.__curr_direction == core.Direction.Down:
             self.__request_floors[
                 self.__curr_position].call_down = False
+        if self.__request_floors[self.__curr_position].cabin:
+            self.__request_floors[self.__curr_position].cabin = False
+            self.__user_interface.turn_button_light_off(
+                tid, self.__curr_position)
 
         # Sends request served message to the floor panel
         self.__network.send_packet(
             self.__floor_address[self.__curr_position],
             "floor_request_served",
             {"elevator": self.__elevator, "direction": self.__curr_direction})
-
-        if self.__request_floors[self.__curr_position].cabin:
-            self.__request_floors[self.__curr_position].cabin = False
 
     def on_position_and_motor_direction_changed(
             self, tid, position, direction):
@@ -249,12 +255,16 @@ class RequestManager(module_base.ModuleBase):
         self._join_transaction(tid)
 
         next_destination = None
+        ignore_curr_floor = 1
+        if self.__curr_state != ElevatorState.Move:
+            ignore_curr_floor = 0
 
         if self.__curr_direction == core.Direction.Up \
                 or self.__curr_direction == core.Direction.Stop:
 
             # Looks up for the nearest request
-            for floor in range(self.__curr_position + 1, self.__floor_number):
+            for floor in range(self.__curr_position + ignore_curr_floor,
+                               self.__floor_number):
                 if self.__request_floors[floor].call_up \
                         or self.__request_floors[floor].cabin:
                     next_destination = floor
@@ -262,8 +272,9 @@ class RequestManager(module_base.ModuleBase):
 
             if next_destination is None:
                 # Looks up for the farthest "down" request
-                for floor in reversed(range(self.__curr_position + 1,
-                                            self.__floor_number)):
+                for floor in reversed(range(
+                        self.__curr_position + ignore_curr_floor,
+                        self.__floor_number)):
                     if self.__request_floors[floor].call_down:
                         next_destination = floor
                         break
@@ -271,7 +282,8 @@ class RequestManager(module_base.ModuleBase):
         if self.__curr_direction == core.Direction.Down \
                 or self.__curr_direction == core.Direction.Stop:
             # Looks down for the nearest request
-            for floor in reversed(range(0, self.__curr_position)):
+            for floor in reversed(range(
+                    0, self.__curr_position + ignore_curr_floor)):
                 if self.__request_floors[floor].call_down \
                         or self.__request_floors[floor].cabin:
                     next_destination = floor
@@ -279,7 +291,8 @@ class RequestManager(module_base.ModuleBase):
 
             if next_destination is None:
                 # Looks down for the farthest "up" request
-                for floor in range(0, self.__curr_position):
+                for floor in range(
+                        0, self.__curr_position + ignore_curr_floor):
                     if self.__request_floors[floor].call_up:
                         next_destination = floor
                         break
