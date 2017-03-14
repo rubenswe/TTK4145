@@ -90,6 +90,8 @@ class MotorController(module_base.ModuleBase):
 
     def __control_motor_thread(self):
 
+        prev_position = -1
+
         tid = self.__transaction_manager.start()
         self._join_transaction(tid)
 
@@ -126,16 +128,21 @@ class MotorController(module_base.ModuleBase):
                     self.__direction = core.Direction.Stop
 
             # Determines whether the motor is still running or not
-            if curr_position == -1:
-                if self.__period * self.__stuck_counter > self.__stuck_timeout:
-                    # Timeout => The motor cannot move
-                    logging.error("The motor cannot move!")
-                    self.__is_stuck = True
-
-                self.__stuck_counter += 1
-            else:
+            if self.__direction == core.Direction.Stop:
                 self.__stuck_counter = 0
                 self.__is_stuck = False
+            else:
+                if curr_position == prev_position:
+                    if self.__period * self.__stuck_counter > \
+                            self.__stuck_timeout:
+                        # Timeout => The motor cannot move
+                        logging.error("The motor cannot move!")
+                        self.__is_stuck = True
+
+                    self.__stuck_counter += 1
+                else:
+                    self.__stuck_counter = 0
+                    self.__is_stuck = False
 
             if curr_position != -1:
                 self.__prev_floor = curr_position

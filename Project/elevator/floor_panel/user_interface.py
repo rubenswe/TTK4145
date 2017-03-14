@@ -185,10 +185,8 @@ class UserInterface(module_base.ModuleBase):
             "Start turning the button light off (direction = %s)", direction)
 
         if direction == core.Direction.Up:
-            button = driver.FloorButton.CallUp
             self.__light_up = False
         else:
-            button = driver.FloorButton.CallDown
             self.__light_down = False
 
         # Not turns of the light yet, wait for commit

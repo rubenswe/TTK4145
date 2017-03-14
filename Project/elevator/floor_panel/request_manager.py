@@ -140,10 +140,17 @@ class RequestManager(module_base.ModuleBase):
             # Finds the appropriate elevator
             elev_no = self.__elevator_monitor.get_best_elevator(tid, direction)
 
-            # Sends the request
-            self.__send_request_to_elevator(tid, direction, elev_no)
-            if self._get_can_commit(tid):
+            if elev_no >= 0:
+                # Sends the request
+                self.__send_request_to_elevator(tid, direction, elev_no)
                 self.__serving_elevator[direction] = elev_no
+            else:
+                # All elevators are disconnected or the floor panel has lost
+                # of network => Removes the request to allow user realizing it
+                self.__has_request[direction] = False
+                self.__user_interface.turn_button_light_off(tid, direction)
+                logging.error("Cannot find any available elevator. Remove "
+                              "the request (direction = %s)", direction)
 
         logging.debug("Finish adding new request (tid = %s, direction = %s)",
                       tid, direction)
@@ -212,12 +219,23 @@ class RequestManager(module_base.ModuleBase):
                     new_elevator = self.__elevator_monitor.get_best_elevator(
                         tid, direction)
 
-                    logging.info("Change serving elevator of direction %s "
-                                 "from %d to %d",
-                                 direction, elevator, new_elevator)
-                    self.__send_request_to_elevator(
-                        tid, direction, new_elevator)
-                    self.__serving_elevator[direction] = new_elevator
+                    if new_elevator >= 0:
+                        logging.info("Change serving elevator of direction %s "
+                                     "from %d to %d",
+                                     direction, elevator, new_elevator)
+                        self.__send_request_to_elevator(
+                            tid, direction, new_elevator)
+                        self.__serving_elevator[direction] = new_elevator
+                    else:
+                        # All elevators are disconnected or the floor panel has
+                        # lost of network => Removes the request to allow user
+                        # realizing it
+                        self.__has_request[direction] = False
+                        self.__user_interface.turn_button_light_off(
+                            tid, direction)
+                        logging.error(
+                            "Cannot find any available elevator. Remove "
+                            "the request (direction = %s)", direction)
         else:
             # If it have not received the request, sends again
             for direction in self.__has_request.keys():
