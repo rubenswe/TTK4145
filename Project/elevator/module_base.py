@@ -1,12 +1,3 @@
-"""
-Copyright (c) 2017 Viet-Hoa Do <viethoad[at]stud.ntnu.com>
-              2017 Ruben Svendsen Wedul <rubensw[at]stud.ntnu.no>
-All Rights Reserved
-
-Unauthorized copying of this file, via any medium is strictly prohibited
-Proprietary and confidential
-"""
-
 import logging
 import threading
 import copy
@@ -52,12 +43,15 @@ class ModuleBase(process_pairs.PrimaryBackupSwitchable,
         if self.__transaction_id is None or self.__transaction_id != tid:
             # Joins the transaction
             self.__resource_lock.acquire()
+            logging.debug("Start joining transaction (tid = %s)", tid)
 
             self.__transaction_manager.join(tid, self)
 
             self.__transaction_id = tid
             self.__prev_state = copy.deepcopy(self.export_state(tid))
             self.__can_commit = True
+
+            logging.debug("Finish joining transaction (tid = %s)", tid)
 
     def _get_can_commit(self, tid):
         """
@@ -80,10 +74,13 @@ class ModuleBase(process_pairs.PrimaryBackupSwitchable,
         Leaves the specified transaction after commit/abort.
         """
 
+        logging.debug("Start leaving transaction (tid = %s)", tid)
         assert tid == self.__transaction_id
 
         self.__transaction_id = None
+
         self.__resource_lock.release()
+        logging.debug("Finish leaving transaction (tid = %s)", tid)
 
     def prepare_to_commit(self, tid):
         """

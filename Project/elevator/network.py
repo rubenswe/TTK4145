@@ -1,20 +1,11 @@
-"""
-Copyright (c) 2017 Viet-Hoa Do <viethoad[at]stud.ntnu.com>
-              2017 Ruben Svendsen Wedul <rubensw[at]stud.ntnu.no>
-All Rights Reserved
-
-Unauthorized copying of this file, via any medium is strictly prohibited
-Proprietary and confidential
-"""
-
 import logging
 import socket
 import json
 import threading
+import time
 import process_pairs
 import transaction
 import core
-import time
 
 
 class Network(process_pairs.PrimaryBackupSwitchable):
@@ -35,13 +26,15 @@ class Network(process_pairs.PrimaryBackupSwitchable):
 
     def __init__(self):
 
+        # Related modules
         self.__transaction_manager = None
 
+        # Configurations
         self.__address = None
-
         self.__timeout = 0.0
         self.__buffer_size = 0
 
+        # States
         self.__handler_list = dict()
 
         self.__server = None
@@ -54,8 +47,12 @@ class Network(process_pairs.PrimaryBackupSwitchable):
         assert isinstance(config, core.Configuration)
         assert isinstance(transaction_manager, transaction.TransactionManager)
 
+        logging.debug("Start initializing network module")
+
+        # Related modules
         self.__transaction_manager = transaction_manager
 
+        # Configurations
         self.__address = (
             config.get_value("network", "ip_address", "127.0.0.1"),
             config.get_int("network", "port")
@@ -63,6 +60,8 @@ class Network(process_pairs.PrimaryBackupSwitchable):
 
         self.__timeout = config.get_float("network", "timeout", 0.5)
         self.__buffer_size = config.get_int("network", "buffer_size", 1024)
+
+        logging.debug("Finish initializing network module")
 
     def start(self, tid):
         """
@@ -208,6 +207,10 @@ class Network(process_pairs.PrimaryBackupSwitchable):
         logging.debug("Finish listening to incoming packet")
 
     def __handle_incoming_packet(self, address, data):
+        """
+        Each incoming packet will be handled in a seperate thread to make
+        sure that the server is always ready for incoming packets.
+        """
 
         try:
             packet = json.loads(data.decode())

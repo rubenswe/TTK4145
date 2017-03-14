@@ -1,12 +1,3 @@
-"""
-Copyright (c) 2017 Viet-Hoa Do <viethoad[at]stud.ntnu.com>
-              2017 Ruben Svendsen Wedul <rubensw[at]stud.ntnu.no>
-All Rights Reserved
-
-Unauthorized copying of this file, via any medium is strictly prohibited
-Proprietary and confidential
-"""
-
 import logging
 import threading
 import time
@@ -61,6 +52,9 @@ class ElevatorController(module_base.ModuleBase):
 
     def init(self, config, transaction_manager, _network,
              request_manager, motor_controller, user_interface):
+        """
+        Initializes the elevator controller.
+        """
 
         assert isinstance(config, core.Configuration)
         assert isinstance(transaction_manager, transaction.TransactionManager)
@@ -94,6 +88,9 @@ class ElevatorController(module_base.ModuleBase):
         logging.debug("Finish initializing elevator controller")
 
     def start(self, tid):
+        """
+        Starts working from the current state.
+        """
 
         self._join_transaction(tid)
         logging.debug("Start activating elevator controller")
@@ -105,7 +102,12 @@ class ElevatorController(module_base.ModuleBase):
         logging.debug("Finish activating elevator controller")
 
     def export_state(self, tid):
+        """
+        Returns the current state of the module in serializable format.
+        """
+
         self._join_transaction(tid)
+        logging.debug("Start exporting current state of elevator controller")
 
         state = {
             "state": self.__state,
@@ -113,21 +115,39 @@ class ElevatorController(module_base.ModuleBase):
             "prev_time": self.__prev_time,
         }
 
+        logging.debug("Finish exporting current state of elevator controller")
         return state
 
     def import_state(self, tid, state):
+        """
+        Replaces the current state of the module with the specified one.
+        """
+
         self._join_transaction(tid)
+        logging.debug("Start importing current state of elevator controller")
 
         self.__state = state["state"]
         self.__direction = state["direction"]
         self.__prev_time = state["prev_time"]
 
+        logging.debug("Finish importing current state of elevator controller")
+
     def __on_elev_state_get_received(self, tid, address, data):
+        """
+        Called when the elevator controller receives a packet from floor
+        panels which asks the current state (position, direction, etc.)
+        of this elevator.
+        """
+
         self._join_transaction(tid)
+        logging.debug("Start handling the \"elev_state_get\" packet "
+                      "from floor %d", data["floor"])
 
         floor = data["floor"]
 
         # Gets list of requests belongs to that floor
+        logging.debug("Get current list of request from request manager")
+
         requests = self.__request_manager.get_current_request_list(tid)
         serving_requests = list()
         if requests[floor].call_up:
@@ -136,6 +156,8 @@ class ElevatorController(module_base.ModuleBase):
             serving_requests.append(core.Direction.Down)
 
         # Gets current motor state
+        logging.debug("Get current state of motor controller")
+
         motor_position, _ = \
             self.__motor_controller.get_current_position_direction(tid)
         motor_stuck = self.__motor_controller.is_stuck(tid)
@@ -148,7 +170,13 @@ class ElevatorController(module_base.ModuleBase):
             "motor_stuck": motor_stuck,
         }
 
+        logging.debug("Finish handling the \"elev_state_get\" packet "
+                      "from floor %d", floor)
+
     def __control_thread(self):
+        """
+        Elevator main controlling finite state manchine.
+        """
 
         logging.debug("Start controlling the elevator")
 
@@ -281,10 +309,21 @@ class ElevatorController(module_base.ModuleBase):
         # Never reach here
 
     def __find_next_destination(self, tid, curr_floor, requests):
+        """
+        Returns the nearest next destination. This function only returns
+        the destination the elevator can reach without changing direction.
+        If it needs to change direction, it must be changed by the main
+        FSM, not here to make sure the elevator always prefer maintaining
+        its direction.
+        """
+
         self._join_transaction(tid)
 
         next_destination = None
 
+        # Considers the current floor if it is staying or stopping
+        # When users push the current floor button, the elevator should
+        # serve that request by keep the door open.
         if self.__state != ElevatorState.Move:
             if self.__direction == core.Direction.Up \
                     and requests[curr_floor].call_up:
@@ -302,14 +341,14 @@ class ElevatorController(module_base.ModuleBase):
         if self.__direction == core.Direction.Up \
                 or self.__direction == core.Direction.Stop:
 
-            # Looks up for the nearest request
+            # Looks up for the nearest "up" request
             for floor in range(curr_floor + 1, self.__floor_number):
                 if requests[floor].call_up \
                         or requests[floor].cabin:
                     next_destination = floor
                     break
 
-            if next_destination is None:
+            if next_destination is None:  # No "up" request exists
                 # Looks up for the farthest "down" request
                 for floor in reversed(range(
                         curr_floor + 1, self.__floor_number)):
@@ -319,14 +358,14 @@ class ElevatorController(module_base.ModuleBase):
 
         if self.__direction == core.Direction.Down \
                 or self.__direction == core.Direction.Stop:
-            # Looks down for the nearest request
+            # Looks down for the nearest "down" request
             for floor in reversed(range(0, curr_floor)):
                 if requests[floor].call_down \
                         or requests[floor].cabin:
                     next_destination = floor
                     break
 
-            if next_destination is None:
+            if next_destination is None:  # No "down" request exists
                 # Looks down for the farthest "up" request
                 for floor in range(0, curr_floor):
                     if requests[floor].call_up:

@@ -1,12 +1,3 @@
-"""
-Copyright (c) 2017 Viet-Hoa Do <viethoad[at]stud.ntnu.com>
-              2017 Ruben Svendsen Wedul <rubensw[at]stud.ntnu.no>
-All Rights Reserved
-
-Unauthorized copying of this file, via any medium is strictly prohibited
-Proprietary and confidential
-"""
-
 import logging
 import threading
 import time
@@ -15,35 +6,6 @@ import core
 import transaction
 import floor_panel
 import module_base
-
-
-class UserInterfaceState(object):
-    """
-    Internal state of the user interface module. For reducing complexity,
-    all fields are public and directly accessible by the UserInterface class.
-    """
-
-    def __init__(self):
-        self.light_up = False  # Whether the up button light is on
-        self.light_down = False  # Whether the down button light is on
-
-    def to_dict(self):
-        """
-        Returns the dictionary which contains the user interface state.
-        """
-
-        return {
-            "light_up": self.light_up,
-            "light_down": self.light_down
-        }
-
-    def load_dict(self, data):
-        """
-        Imports the user interface state from the specified dictionary.
-        """
-
-        self.light_up = data["light_up"]
-        self.light_down = data["light_down"]
 
 
 class UserInterface(module_base.ModuleBase):
@@ -82,6 +44,7 @@ class UserInterface(module_base.ModuleBase):
         assert isinstance(request_manager,
                           floor_panel.request_manager.RequestManager)
 
+        logging.debug("Start initializing user interface module")
         module_base.ModuleBase.init(self, transaction_manager)
 
         self.__transaction_manager = transaction_manager
@@ -91,6 +54,8 @@ class UserInterface(module_base.ModuleBase):
         # Reads the configuration
         self.__floor = config.get_int("floor", "floor")
         self.__period = config.get_float("floor", "ui_monitor_period", 0.1)
+
+        logging.debug("Finish initializing user interface module")
 
     def start(self, tid):
         """

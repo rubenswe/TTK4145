@@ -32,6 +32,8 @@ void elev_init(void) {
     int init_success = io_init();
     assert(init_success && "Unable to initialize elevator hardware!");
 
+
+    /* No initialization because the lights are shared between multiple nodes */
     /*for (int f = 0; f < N_FLOORS; f++) {
         for (elev_button_type_t b = 0; b < N_BUTTONS; b++){
             elev_set_button_lamp(b, f, 0);

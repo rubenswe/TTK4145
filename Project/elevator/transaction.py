@@ -1,12 +1,3 @@
-"""
-Copyright (c) 2017 Viet-Hoa Do <viethoad[at]stud.ntnu.com>
-              2017 Ruben Svendsen Wedul <rubensw[at]stud.ntnu.no>
-All Rights Reserved
-
-Unauthorized copying of this file, via any medium is strictly prohibited
-Proprietary and confidential
-"""
-
 import logging
 import uuid
 import threading

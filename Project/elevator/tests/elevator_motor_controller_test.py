@@ -1,11 +1,3 @@
-"""
-Created on Feb 9, 2017
-
-@author: Viet-Hoa Do
-"""
-
-import time
-import threading
 import logging
 import argparse
 import core

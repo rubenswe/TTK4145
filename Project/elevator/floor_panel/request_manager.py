@@ -1,12 +1,3 @@
-"""
-Copyright (c) 2017 Viet-Hoa Do <viethoad[at]stud.ntnu.com>
-              2017 Ruben Svendsen Wedul <rubensw[at]stud.ntnu.no>
-All Rights Reserved
-
-Unauthorized copying of this file, via any medium is strictly prohibited
-Proprietary and confidential
-"""
-
 import logging
 import transaction
 import network
@@ -57,6 +48,7 @@ class RequestManager(module_base.ModuleBase):
         assert isinstance(elevator_monitor,
                           floor_panel.elevator_monitor.ElevatorMonitor)
 
+        logging.debug("Start initializing request manager")
         module_base.ModuleBase.init(self, transaction_manager)
 
         # Related modules
@@ -79,6 +71,8 @@ class RequestManager(module_base.ModuleBase):
                                     self.__on_request_served_received)
         _network.add_packet_handler("floor_get_all_requests",
                                     self.__on_get_all_requests_received)
+
+        logging.debug("Finish initializing request manager")
 
     def start(self, tid):
         """
@@ -253,6 +247,11 @@ class RequestManager(module_base.ModuleBase):
             elevator)
 
     def __on_request_served_received(self, tid, address, data):
+        """
+        Called when receiving a "request_served" packet which has sent by
+        an elevator. This request then is deleted and the corresponding
+        button light will be turned off.
+        """
 
         self._join_transaction(tid)
         logging.debug("Start handling request served packet from elevator")
@@ -275,8 +274,17 @@ class RequestManager(module_base.ModuleBase):
         return True
 
     def __on_get_all_requests_received(self, tid, address, data):
+        """
+        Called when receiving a "get_all_requests" packet which has sent by
+        a read-only floor panel.
+        """
 
         self._join_transaction(tid)
+        logging.debug("Start handling \"get_all_requests\" packet")
 
-        return (self.__has_request[core.Direction.Up],
-                self.__has_request[core.Direction.Down])
+        requests = (self.__has_request[core.Direction.Up],
+                    self.__has_request[core.Direction.Down])
+
+        logging.debug("Finish handling \"get_all_requests\" packet "
+                      "(requests = %s)", requests)
+        return requests

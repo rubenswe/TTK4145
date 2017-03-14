@@ -1,12 +1,3 @@
-"""
-Copyright (c) 2017 Viet-Hoa Do <viethoad[at]stud.ntnu.com>
-              2017 Ruben Svendsen Wedul <rubensw[at]stud.ntnu.no>
-All Rights Reserved
-
-Unauthorized copying of this file, via any medium is strictly prohibited
-Proprietary and confidential
-"""
-
 import logging
 import argparse
 import time
@@ -19,9 +10,10 @@ import floor_panel.user_interface
 import floor_panel.request_manager
 import floor_panel.elevator_monitor
 
-logging.basicConfig(format="%(process)d | %(levelname)8s | %(asctime)s : %(message)s"
-                    " (%(module)s.%(funcName)s)",
-                    level=logging.INFO)
+logging.basicConfig(
+    format="%(process)d | %(levelname)8s | %(asctime)s : %(message)s"
+    " (%(module)s.%(funcName)s)",
+    level=logging.INFO)
 
 
 def main():

@@ -1,12 +1,3 @@
-"""
-Copyright (c) 2017 Viet-Hoa Do <viethoad[at]stud.ntnu.com>
-              2017 Ruben Svendsen Wedul <rubensw[at]stud.ntnu.no>
-All Rights Reserved
-
-Unauthorized copying of this file, via any medium is strictly prohibited
-Proprietary and confidential
-"""
-
 import logging
 import threading
 import time
@@ -78,6 +69,7 @@ class ElevatorMonitor(module_base.ModuleBase):
         assert isinstance(
             request_manager, floor_panel.request_manager.RequestManager)
 
+        logging.debug("Start initializing elevator monitor module")
         module_base.ModuleBase.init(self, transaction_manager)
 
         # Related modules
@@ -101,6 +93,8 @@ class ElevatorMonitor(module_base.ModuleBase):
         # Initializes state
         self.__elevator_list = [ElevatorState()
                                 for i in range(self.__elevator_number)]
+
+        logging.debug("Finish initializing elevator monitor module")
 
     def start(self, tid):
         """
@@ -169,7 +163,7 @@ class ElevatorMonitor(module_base.ModuleBase):
                 elev_direction = state.direction
                 distance = 0
 
-                # Walks
+                # Calculates the worst-case distance
                 if elev_direction == core.Direction.Up:
                     if direction == core.Direction.Up:
                         if elev_position < self.__floor:

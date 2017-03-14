@@ -1,14 +1,5 @@
-"""
-Copyright (c) 2017 Viet-Hoa Do <viethoad[at]stud.ntnu.com>
-              2017 Ruben Svendsen Wedul <rubensw[at]stud.ntnu.no>
-All Rights Reserved
-Unauthorized copying of this file, via any medium is strictly prohibited
-Proprietary and confidential
-"""
-
 import logging
 import threading
-import process_pairs
 import driver
 import time
 import core
@@ -29,17 +20,19 @@ class UserInterface(module_base.ModuleBase):
 
         self.__started = False
 
-        self.__floor = None
-        self.__door_opened = False
-        self.__curr_floor = 0
+        # Related modules
+        self.__transaction_manager = None
+        self.__driver = None
+        self.__request_manager = None
 
+        # Configurations
         self.__floor_number = None
         self.__period = 0.0
 
-        self.__transaction_manager = None
-        self.__driver = None
-
-        self.__request_manager = None
+        # States
+        self.__floor = None
+        self.__door_opened = False
+        self.__curr_floor = 0
 
     def init(self, config, transaction_manager, _driver, request_manager):
         """
@@ -52,16 +45,22 @@ class UserInterface(module_base.ModuleBase):
         assert isinstance(request_manager,
                           elevator.request_manager.RequestManager)
 
+        logging.debug("Start initializing user interface module")
         module_base.ModuleBase.init(self, transaction_manager)
 
+        # Related modules
         self.__transaction_manager = transaction_manager
         self.__driver = _driver
         self.__request_manager = request_manager
 
+        # Configurations
         self.__floor_number = config.get_int("core", "floor_number")
         self.__period = config.get_float("elevator", "ui_monitor_period")
 
+        # States
         self.__floor = [0] * self.__floor_number
+
+        logging.debug("Finish initialzing user interface module")
 
     def start(self, tid):
         """
@@ -133,7 +132,10 @@ class UserInterface(module_base.ModuleBase):
         """
 
         self._join_transaction(tid)
+        logging.debug("Start/Finish setting the door open light "
+                      "(is_opened = %s)", is_opened)
         self.__door_opened = is_opened
+        # Actual light changing will be done when the transaction finishes
 
     def set_floor_indicator(self, tid, curr_floor):
         """
@@ -141,7 +143,10 @@ class UserInterface(module_base.ModuleBase):
         """
 
         self._join_transaction(tid)
+        logging.debug("Start/Finish setting the floor indicator "
+                      "(curr_floor = %d)", curr_floor)
         self.__curr_floor = curr_floor
+        # Actual light changing will be done when the transaction finishes
 
     def prepare_to_commit(self, tid):
         """
@@ -150,6 +155,8 @@ class UserInterface(module_base.ModuleBase):
         """
 
         self._join_transaction(tid)
+
+        logging.debug("Updates the lights")
         if self._get_can_commit(tid):
             if self.__started:
                 for floor in range(self.__floor_number):
@@ -172,7 +179,7 @@ class UserInterface(module_base.ModuleBase):
 
         logging.debug("Start monitoring elevator panel buttons")
 
-        is_pushed = [0, 0, 0, 0]
+        is_pushed = [0] * self.__floor_number
 
         while True:
 
@@ -180,7 +187,8 @@ class UserInterface(module_base.ModuleBase):
             # TODO: When any of the buttons is pushed, send a request to the
             # RequestManager
             for floor in range(len(is_pushed)):
-                value = self.__driver.get_button_signal(2, floor)
+                value = self.__driver.get_button_signal(
+                    driver.FloorButton.Command, floor)
                 if is_pushed[floor] == 0 and value == 1:
                     # This button is pushed
                     logging.info("Button to floor %d is pushed", floor)

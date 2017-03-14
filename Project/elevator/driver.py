@@ -1,24 +1,17 @@
-"""
-Copyright (c) 2017 Viet-Hoa Do <viethoad[at]stud.ntnu.com>
-              2017 Ruben Svendsen Wedul <rubensw[at]stud.ntnu.no>
-All Rights Reserved
-
-Unauthorized copying of this file, via any medium is strictly prohibited
-Proprietary and confidential
-"""
-
-import ctypes
-import enum
 import logging
-import process_pairs
 import socket
 import threading
+import ctypes
+import enum
 import module_base
 import core
 import transaction
 
 
 class DriverTarget(enum.IntEnum):
+    """
+    Hardware or simulator.
+    """
 
     Comedi = 0,
     Simulation = 1
@@ -132,24 +125,28 @@ class Driver(module_base.ModuleBase):
 
     def get_button_signal(self, button, floor):
         if self.__lib.elev_get_stop_signal() != 0:
+            # The motor box has lost of power, returns a "safe" value
             return 0
 
         return self.__lib.elev_get_button_signal(button, floor)
 
     def get_floor_sensor_signal(self):
         if self.__lib.elev_get_stop_signal() != 0:
+            # The motor box has lost of power, returns a "safe" value
             return -1
 
         return self.__lib.elev_get_floor_sensor_signal()
 
     def get_stop_signal(self):
         if self.__lib.elev_get_stop_signal() != 0:
+            # The motor box has lost of power, returns a "safe" value
             return 0
 
         return self.__lib.elev_get_stop_signal()
 
     def get_obstruction_signal(self):
         if self.__lib.elev_get_stop_signal() != 0:
+            # The motor box has lost of power, returns a "safe" value
             return 0
 
         return self.__lib.elev_get_obstruction_signal()

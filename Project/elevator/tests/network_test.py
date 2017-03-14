@@ -1,12 +1,3 @@
-"""
-Copyright (c) 2017 Viet-Hoa Do <viethoad[at]stud.ntnu.com>
-              2017 Ruben Svendsen Wedul <rubensw[at]stud.ntnu.no>
-All Rights Reserved
-
-Unauthorized copying of this file, via any medium is strictly prohibited
-Proprietary and confidential
-"""
-
 import logging
 import core
 import network
@@ -54,8 +45,13 @@ def main():
 
     network_1.add_packet_handler("echo", on_receive_echo)
 
-    network_0.start()
-    network_1.start()
+    tid_0 = transaction_manager_0.start()
+    network_0.start(tid_0)
+    transaction_manager_0.finish(tid_0)
+
+    tid_1 = transaction_manager_1.start()
+    network_1.start(tid_1)
+    transaction_manager_1.finish(tid_1)
 
     # Sends echo packet from 0 to 1, expects 1 receives the right message
     # and replies the same one
