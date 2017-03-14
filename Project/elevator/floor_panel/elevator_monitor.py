@@ -205,7 +205,6 @@ class ElevatorMonitor(module_base.ModuleBase):
                         distance = elev_position - self.__floor
                     else:
                         distance = self.__floor - elev_position
-                    break
 
                 # If it is the shortest distance, saves it
                 logging.debug("Elevator %d: distance %d", index, distance)
@@ -213,7 +212,7 @@ class ElevatorMonitor(module_base.ModuleBase):
                     min_distance = distance
                     best_elevator = index
             else:
-                logging.debug("Elevator %d is dead", index)
+                logging.error("Elevator %d is dead", index)
 
         if best_elevator == -1:
             logging.error("Cannot find any available elevator!")

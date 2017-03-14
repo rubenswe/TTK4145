@@ -143,6 +143,7 @@ class MotorController(module_base.ModuleBase):
                 else:
                     self.__stuck_counter = 0
                     self.__is_stuck = False
+            prev_position = curr_position
 
             if curr_position != -1:
                 self.__prev_floor = curr_position

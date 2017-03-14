@@ -78,7 +78,7 @@ class Network(process_pairs.PrimaryBackupSwitchable):
 
         while True:
             try:
-                self.__server.bind(("127.0.0.1", self.__address[1]))
+                self.__server.bind(("", self.__address[1]))
                 break
             except OSError:
                 logging.error("Socket cannot bind the address "
