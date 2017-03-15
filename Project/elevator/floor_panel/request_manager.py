@@ -177,7 +177,6 @@ class RequestManager(module_base.ModuleBase):
         if resp is not True:
             logging.error(
                 "Cannot send the request to elevator %d", elevator)
-            self._set_can_commit(tid, False)
 
             return False
         else:

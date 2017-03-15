@@ -3,6 +3,7 @@ import socket
 import json
 import threading
 import time
+import random
 import process_pairs
 import transaction
 import core
@@ -151,6 +152,7 @@ class Network(process_pairs.PrimaryBackupSwitchable):
         client.settimeout(self.__timeout)
 
         try:
+            # if random.randrange(0, 100) > 50:  # Not part of system
             client.sendto(packet_json.encode(), addr)
         except OSError:
             logging.error(
@@ -248,6 +250,8 @@ class Network(process_pairs.PrimaryBackupSwitchable):
             try:
                 client = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
                 client.settimeout(self.__timeout)
+
+                # if random.randrange(0, 100) > 50:  # Not part of system
                 client.sendto(resp_json.encode(), address)
             except OSError:
                 logging.error("Cannot reply! (addr = %s:%d)",
